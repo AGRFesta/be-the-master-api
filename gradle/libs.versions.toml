@@ -7,6 +7,7 @@ ktor = "2.3.11"
 junit-jupiter-engine = "5.10.2"
 kotest = "5.9.0"
 arrow = "1.2.4"
+jtokkit = "1.0.0"
 
 [libraries]
 ktor-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
@@ -16,6 +17,7 @@ junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine", vers
 kotest-assertions-core = { module = "io.kotest:kotest-assertions-core-jvm", version.ref = "kotest" }
 kotest-assertions-arrow = { module = "io.kotest.extensions:kotest-assertions-arrow", version = "1.4.0" }
 arrow-core = { module = "io.arrow-kt:arrow-core", version.ref = "arrow" }
+jtokkit = { module = "com.knuddels:jtokkit", version.ref = "jtokkit" }
 
 [plugins]
 jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

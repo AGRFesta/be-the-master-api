@@ -28,6 +28,7 @@ dependencies {
     implementation(libs.ktor.core)
     implementation(libs.ktor.okhttp)
     implementation(libs.arrow.core)
+    implementation(libs.jtokkit)
 
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude(module = "junit")
