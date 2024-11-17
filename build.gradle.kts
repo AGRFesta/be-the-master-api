@@ -27,6 +27,9 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.15.0")
     implementation(libs.ktor.core)
     implementation(libs.ktor.okhttp)
+    implementation(libs.ktor.serialization.jackson)
+    implementation(libs.ktor.client.auth)
+    implementation(libs.ktor.client.content.negotiation)
     implementation(libs.arrow.core)
     implementation(libs.jtokkit)
 

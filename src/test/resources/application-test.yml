@@ -1,0 +1,4 @@
+providers:
+  openai:
+    base-url: https://openai.fake
+    api-key: somekey
