@@ -22,8 +22,9 @@ repositories {
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
-    implementation("org.hibernate.orm:hibernate-core")
+    implementation("org.postgresql:postgresql")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.15.0")
     implementation(libs.ktor.core)
     implementation(libs.ktor.okhttp)
@@ -32,6 +33,8 @@ dependencies {
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.arrow.core)
     implementation(libs.jtokkit)
+    implementation(libs.flyway.core)
+    runtimeOnly(libs.flyway.postgress)
 
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude(module = "junit")
@@ -43,6 +46,7 @@ dependencies {
     testImplementation(libs.kotest.assertions.core)
     testImplementation(libs.kotest.assertions.arrow)
     testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:postgresql")
     testImplementation("com.redis:testcontainers-redis:2.2.2")
     testImplementation("io.rest-assured:rest-assured")
     testImplementation("io.mockk:mockk:1.13.10")
