@@ -24,6 +24,7 @@ kotest-assertions-core = { module = "io.kotest:kotest-assertions-core-jvm", vers
 kotest-assertions-arrow = { module = "io.kotest.extensions:kotest-assertions-arrow", version = "1.4.0" }
 arrow-core = { module = "io.arrow-kt:arrow-core", version.ref = "arrow" }
 jtokkit = { module = "com.knuddels:jtokkit", version.ref = "jtokkit" }
+pgvector = { module = "com.pgvector:pgvector", version = "0.1.6" }
 
 [plugins]
 jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
