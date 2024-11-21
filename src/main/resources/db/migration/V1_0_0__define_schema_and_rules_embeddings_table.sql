@@ -11,7 +11,8 @@ CREATE TABLE btm.rules_embeddings (
     id UUID PRIMARY KEY,                     -- Unique identifier
     game game_enum NOT NULL,                 -- Enum for the game type
     vector VECTOR(1536) NOT NULL,            -- 1536-dimensional embedding vector
-    text TEXT NOT NULL                       -- Original text used to generate the embedding
+    text TEXT NOT NULL,                      -- Original text used to generate the embedding
+    created_on TIMESTAMP NOT NULL            -- Creation timestamp
 );
 
 -- Create an index to speed up similarity searches

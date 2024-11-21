@@ -33,6 +33,7 @@ dependencies {
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.arrow.core)
     implementation(libs.jtokkit)
+    implementation(libs.pgvector)
     implementation(libs.flyway.core)
     runtimeOnly(libs.flyway.postgress)
 
