@@ -12,4 +12,6 @@ interface RulesEmbeddingsDao {
     @Transactional
     fun persist(ruleBitId: UUID, game: Game, embedding: Embedding, text: String): Either<PersistenceFailure, UUID>
 
+    fun nearestRules(game: Game, embedding: Embedding): Either<PersistenceFailure, List<String>>
+
 }

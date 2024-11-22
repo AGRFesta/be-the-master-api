@@ -18,7 +18,9 @@ import org.agrfesta.btm.api.services.EmbeddingsService
 import org.agrfesta.btm.api.services.RulesService
 import org.agrfesta.test.mothers.aRandomUniqueString
 import org.agrfesta.test.mothers.anEmbedding
+import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import org.springframework.context.annotation.Import
@@ -95,6 +97,25 @@ class RulesBitsControllerUnitTest(
 
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
         response.message shouldBe "Rule bit $uuid successfully persisted! But embedding creation failed!"
+    }
+
+    @TestFactory
+    fun `createRuleBit() returns 400 when text is empty`() = listOf("", " ", "  ", "    ").map {
+        dynamicTest(" -> '$it'") {
+            val responseBody: String = mockMvc.perform(
+                post("/rules/bits")
+                    .contentType("application/json")
+                    .content("""{"game": "MAUSRITTER", "text": "$it", "inBatch": false}"""))
+                .andExpect(status().isBadRequest)
+                .andReturn().response.contentAsString
+
+            verify(exactly = 0) { rulesBitsDao.persist(any(), any()) }
+            coVerify(exactly = 0) { embeddingsService.createEmbedding(any()) }
+            verify(exactly = 0) { rulesEmbeddingsDao.persist(any(), any(), any(), any()) }
+            verify(exactly = 0) { rulesBitsDao.update(any(), any()) }
+            val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+            response.message shouldBe "Text must not be empty!"
+        }
     }
 
 }
