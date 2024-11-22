@@ -7,6 +7,7 @@ import org.agrfesta.btm.api.persistence.RulesBitsDao
 import org.agrfesta.btm.api.services.RulesService
 import org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR
 import org.springframework.http.ResponseEntity
+import org.springframework.http.ResponseEntity.badRequest
 import org.springframework.http.ResponseEntity.ok
 import org.springframework.http.ResponseEntity.status
 import org.springframework.web.bind.annotation.PostMapping
@@ -23,6 +24,9 @@ class RulesBitsController(
 
     @PostMapping("/bits")
     fun createRuleBit(@RequestBody request: RuleBitCreationRequest): ResponseEntity<Any> {
+        if (request.text.isBlank()) {
+            return badRequest().body(MessageResponse("Text must not be empty!"))
+        }
         when (val insertResult = rulesBitsDao.persist(request.game, request.text)) {
             is Left -> return status(INTERNAL_SERVER_ERROR).body(MessageResponse("Unable to create rule bit!"))
             is Right -> {

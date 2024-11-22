@@ -45,4 +45,14 @@ class RulesEmbeddingsDaoJdbcImpl(
         }
     }
 
+    override fun nearestRules(game: Game, target: Embedding): Either<PersistenceFailure, List<String>> {
+        return try {
+            val result = rulesEmbeddingRepo.getNearestRulesEmbeddings(target, game.name)
+            result.map { it.text }.toList().right()
+        } catch (e: Exception) {
+            logger.error("Rule embedding persistence failure!", e)
+            PersistenceFailure("Rule embedding persistence failure!", e).left()
+        }
+    }
+
 }
