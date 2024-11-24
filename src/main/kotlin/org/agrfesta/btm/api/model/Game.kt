@@ -1,5 +1,5 @@
 package org.agrfesta.btm.api.model
 
 enum class Game {
-    MAUSRITTER
+    MAUSRITTER, MORG_BORK
 }

@@ -12,14 +12,22 @@ class RulesEmbeddingRepository(
     private val namedParameterJdbcTemplate: NamedParameterJdbcTemplate
 ) {
 
-    fun insertRuleEmbedding(id: UUID, game: String, vector: FloatArray, text: String, createdOn: Instant) {
+    fun insertRuleEmbedding(
+        id: UUID,
+        ruleBitId: UUID,
+        game: String,
+        vector: FloatArray,
+        text: String,
+        createdOn: Instant
+    ) {
         val sql = """
-        INSERT INTO btm.rules_embeddings (id, game, vector, text, created_on)
-        VALUES (:id, CAST(:game AS game_enum), CAST(:vector AS vector), :text, :createdOn);
+        INSERT INTO btm.rules_embeddings (id, rule_bit_id, game, vector, text, created_on)
+        VALUES (:id, :ruleBitId, CAST(:game AS game_enum), CAST(:vector AS vector), :text, :createdOn);
         """
 
         val params = mapOf(
             "id" to id,
+            "ruleBitId" to ruleBitId,
             "game" to game,
             "vector" to PGvector(vector),
             "text" to text,

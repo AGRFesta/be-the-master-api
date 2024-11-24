@@ -21,6 +21,13 @@ class TestingRulesEmbeddingRepository(
                 .firstOrNull()
     }
 
+    fun findByRuleBitId(id: UUID): RuleEmbedding? {
+        val sql = """SELECT * FROM btm.rules_embeddings WHERE rule_bit_id = :id;"""
+        val params = MapSqlParameterSource(mapOf("id" to id))
+        return jdbcTemplate.query(sql, params, RuleEmbeddingRowMapper)
+            .firstOrNull()
+    }
+
 }
 
 object RuleEmbeddingRowMapper: RowMapper<RuleEmbedding> {

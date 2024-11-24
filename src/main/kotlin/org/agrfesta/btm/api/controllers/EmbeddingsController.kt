@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import java.util.*
 
 @RestController
 @RequestMapping("/embeddings")
@@ -30,6 +31,7 @@ class EmbeddingsController(
         } else {
             when (val result = runBlocking { embeddingsService.createEmbedding(request.text) }) {
                 is Right -> when(val persisted = rulesEmbeddingsDao.persist(
+                    ruleBitId = UUID.randomUUID(),
                     game = request.game,
                     embedding = result.value,
                     text = request.text

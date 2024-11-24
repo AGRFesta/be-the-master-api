@@ -11,11 +11,9 @@ import io.mockk.every
 import io.mockk.verify
 import org.agrfesta.btm.api.model.EmbeddingCreationFailure
 import org.agrfesta.btm.api.model.Game
-import org.agrfesta.btm.api.persistence.PersistenceFailure
+import org.agrfesta.btm.api.model.PersistenceFailure
 import org.agrfesta.btm.api.persistence.RulesEmbeddingsDao
 import org.agrfesta.btm.api.services.EmbeddingsService
-import org.agrfesta.btm.api.services.utils.RandomGenerator
-import org.agrfesta.btm.api.services.utils.TimeService
 import org.agrfesta.test.mothers.aRandomUniqueString
 import org.agrfesta.test.mothers.anEmbedding
 import org.junit.jupiter.api.DynamicTest.dynamicTest
@@ -34,9 +32,7 @@ class EmbeddingsControllerUnitTest(
     @Autowired private val mockMvc: MockMvc,
     @Autowired private val objectMapper: ObjectMapper,
     @Autowired @MockkBean private val embeddingsService: EmbeddingsService,
-    @Autowired @MockkBean private val rulesEmbeddingsDao: RulesEmbeddingsDao,
-    @Autowired @MockkBean private val randomGenerator: RandomGenerator,
-    @Autowired @MockkBean private val timeService: TimeService
+    @Autowired @MockkBean private val rulesEmbeddingsDao: RulesEmbeddingsDao
 ) {
 
     @TestFactory
@@ -50,14 +46,13 @@ class EmbeddingsControllerUnitTest(
                 .andReturn().response.contentAsString
 
             coVerify(exactly = 0) { embeddingsService.createEmbedding(any()) }
-            verify(exactly = 0) { rulesEmbeddingsDao.persist(any(), any(), any()) }
+            verify(exactly = 0) { rulesEmbeddingsDao.persist(any(), any(), any(), any()) }
             val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
             response.message shouldBe "Text must not be empty!"
         }
     }
 
-    @Test
-    fun `createRuleEmbedding() returns 500 when embedding creation fails`() {
+    @Test fun `createRuleEmbedding() returns 500 when embedding creation fails`() {
         val text = aRandomUniqueString()
         coEvery { embeddingsService.createEmbedding(text) } returns EmbeddingCreationFailure.left()
         val responseBody: String = mockMvc.perform(
@@ -67,7 +62,7 @@ class EmbeddingsControllerUnitTest(
             .andExpect(status().isInternalServerError)
             .andReturn().response.contentAsString
 
-        verify(exactly = 0) { rulesEmbeddingsDao.persist(any(), any(), any()) }
+        verify(exactly = 0) { rulesEmbeddingsDao.persist(any(), any(), any(), any()) }
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
         response.message shouldBe "Unable to create embedding!"
     }
@@ -77,7 +72,8 @@ class EmbeddingsControllerUnitTest(
         val text = aRandomUniqueString()
         val embedding = anEmbedding()
         coEvery { embeddingsService.createEmbedding(text) } returns embedding.right()
-        every { rulesEmbeddingsDao.persist(Game.MAUSRITTER, embedding, text) } returns PersistenceFailure.left()
+        every { rulesEmbeddingsDao.persist(any(), Game.MAUSRITTER, embedding, text) } returns
+                PersistenceFailure("failure").left()
         val responseBody: String = mockMvc.perform(
             post("/embeddings/rules")
                 .contentType("application/json")

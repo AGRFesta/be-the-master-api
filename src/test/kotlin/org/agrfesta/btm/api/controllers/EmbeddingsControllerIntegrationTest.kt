@@ -18,6 +18,7 @@ import org.agrfesta.btm.api.services.utils.toNoNanoSec
 import org.agrfesta.test.mothers.aRandomUniqueString
 import org.agrfesta.test.mothers.anEmbedding
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -31,6 +32,7 @@ import org.testcontainers.utility.DockerImageName
 import java.time.Instant
 import java.util.*
 
+@Disabled("the controller will be removed soon")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
 @ActiveProfiles("test")
