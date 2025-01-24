@@ -7,8 +7,10 @@ import org.agrfesta.btm.api.model.Embedding
 import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.persistence.PartiesDao
 import org.agrfesta.btm.api.persistence.RulesEmbeddingsDao
+import org.agrfesta.btm.api.persistence.jdbc.repositories.GlossariesRepository
 import org.agrfesta.btm.api.services.EmbeddingsService
 import org.agrfesta.btm.api.services.Tokenizer
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR
 import org.springframework.http.HttpStatus.OK
 import org.springframework.http.ResponseEntity
@@ -17,15 +19,19 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-import java.util.UUID
+import java.util.*
 
 @RestController
 @RequestMapping("/prompts")
 class PromptsController(
+    @Value("\${translation.prompt.introduction}") private val transPromptIntro: String,
+    @Value("\${translation.prompt.original.text.introduction}") private val originalTextIntro: String,
+    @Value("\${translation.prompt.suggested.glossary.introduction}") private val suggestedGlossaryIntro: String,
     private val tokenizer: Tokenizer,
     private val partiesDao: PartiesDao,
     private val embeddingsService: EmbeddingsService,
-    private val rulesEmbeddingsDao: RulesEmbeddingsDao
+    private val rulesEmbeddingsDao: RulesEmbeddingsDao,
+    private val glossariesRepository: GlossariesRepository
 ) {
 
     @PostMapping("/enhance")
@@ -67,8 +73,21 @@ class PromptsController(
         }
     }
 
+    @PostMapping("/translation")
+    fun createTranslationPrompt(@RequestBody request: TranslationPromptRequest): ResponseEntity<Any> {
+        val glossary = glossariesRepository.getAllEntriesByGame(request.game)
+        val lowerText = request.text.lowercase()
+        val suggestedGlossary = glossary.entries
+            .map { it.toPair() }
+            .filter { lowerText.contains(it.first) }
+            .joinToString(",") { "${it.first}=${it.second}" }
+        return status(OK)
+            .body("$transPromptIntro\n$originalTextIntro${request.text}\n$suggestedGlossaryIntro[$suggestedGlossary]")
+    }
+
 }
 
 data class PromptRequest(val prompt: String)
 data class TokenCountResponse(val count: Int)
 data class PromptEnhanceRequest(val partyId: UUID, val prompt: String)
+data class TranslationPromptRequest(val game: Game, val text: String)
