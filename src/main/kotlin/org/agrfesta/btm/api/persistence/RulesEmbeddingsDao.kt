@@ -14,4 +14,7 @@ interface RulesEmbeddingsDao {
 
     fun nearestRules(game: Game, embedding: Embedding): Either<PersistenceFailure, List<String>>
 
+    @Transactional
+    fun deleteByRuleId(ruleBitId: UUID): Either<PersistenceFailure, Unit>
+
 }
