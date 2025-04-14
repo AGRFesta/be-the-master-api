@@ -13,9 +13,11 @@ import io.restassured.RestAssured.given
 import io.restassured.http.ContentType
 import org.agrfesta.btm.api.model.EmbeddingCreationFailure
 import org.agrfesta.btm.api.model.Game
-import org.agrfesta.btm.api.model.RuleBitEmbeddingStatus
+import org.agrfesta.btm.api.model.RuleBitsEmbeddingStatus
 import org.agrfesta.btm.api.persistence.TestingRulesBitsRepository
 import org.agrfesta.btm.api.persistence.TestingRulesEmbeddingRepository
+import org.agrfesta.btm.api.persistence.jdbc.repositories.RulesBitsRepository
+import org.agrfesta.btm.api.persistence.jdbc.repositories.RulesEmbeddingRepository
 import org.agrfesta.btm.api.services.EmbeddingsService
 import org.agrfesta.btm.api.services.utils.RandomGenerator
 import org.agrfesta.btm.api.services.utils.TimeService
@@ -42,8 +44,10 @@ import java.util.*
 @Testcontainers
 @ActiveProfiles("test")
 class RulesBitsControllerIntegrationTest(
-    @Autowired private val testRulesBitsRepository: TestingRulesBitsRepository,
+    @Autowired private val testRulesBitsRepo: TestingRulesBitsRepository,
     @Autowired private val testRulesEmbeddingsRepo: TestingRulesEmbeddingRepository,
+    @Autowired private val rulesBitsRepo: RulesBitsRepository,
+    @Autowired private val rulesEmbeddingRepo: RulesEmbeddingRepository,
     @Autowired @MockkBean private val embeddingsService: EmbeddingsService,
     @Autowired @MockkBean private val randomGenerator: RandomGenerator,
     @Autowired @MockkBean private val timeService: TimeService
@@ -72,8 +76,10 @@ class RulesBitsControllerIntegrationTest(
         every { timeService.nowNoNano() } returns now
     }
 
+    ///// createRuleBit ////////////////////////////////////////////////////////////////////////////////////////////////
+
     @TestFactory
-    fun `createRuleBit() Creates rule bit only when inBatch is true`() = listOf(
+    fun `createRuleBit() Creates rule bits only, when inBatch is true or not specified`() = listOf(
         """{"game": "MAUSRITTER", "text": "$text", "inBatch": true}""",
         """{"game": "MAUSRITTER", "text": "$text"}"""
     ).map {
@@ -94,9 +100,9 @@ class RulesBitsControllerIntegrationTest(
                 .`as`(MessageResponse::class.java)
 
             result.message shouldBe "Rule bit $uuid successfully persisted!"
-            val ruleBit = testRulesBitsRepository.findById(uuid)
+            val ruleBit = testRulesBitsRepo.findById(uuid)
             ruleBit.shouldNotBeNull()
-            ruleBit.embeddingStatus shouldBe RuleBitEmbeddingStatus.UNEMBEDDED.name
+            ruleBit.embeddingStatus shouldBe RuleBitsEmbeddingStatus.UNEMBEDDED.name
             ruleBit.text shouldBe text
             ruleBit.game shouldBe Game.MAUSRITTER.name
             ruleBit.createdOn shouldBe now
@@ -122,9 +128,9 @@ class RulesBitsControllerIntegrationTest(
             .`as`(MessageResponse::class.java)
 
         result.message shouldBe "Rule bit $uuid successfully persisted!"
-        val ruleBit = testRulesBitsRepository.findById(uuid)
+        val ruleBit = testRulesBitsRepo.findById(uuid)
         ruleBit.shouldNotBeNull()
-        ruleBit.embeddingStatus shouldBe RuleBitEmbeddingStatus.EMBEDDED.name
+        ruleBit.embeddingStatus shouldBe RuleBitsEmbeddingStatus.EMBEDDED.name
         ruleBit.text shouldBe text
         ruleBit.game shouldBe Game.MAUSRITTER.name
         ruleBit.createdOn shouldBe now
@@ -152,9 +158,9 @@ class RulesBitsControllerIntegrationTest(
             .`as`(MessageResponse::class.java)
 
         result.message shouldBe "Rule bit $uuid successfully persisted! But embedding creation failed!"
-        val ruleBit = testRulesBitsRepository.findById(uuid)
+        val ruleBit = testRulesBitsRepo.findById(uuid)
         ruleBit.shouldNotBeNull()
-        ruleBit.embeddingStatus shouldBe RuleBitEmbeddingStatus.UNEMBEDDED.name
+        ruleBit.embeddingStatus shouldBe RuleBitsEmbeddingStatus.UNEMBEDDED.name
         ruleBit.text shouldBe text
         ruleBit.game shouldBe Game.MAUSRITTER.name
         ruleBit.createdOn shouldBe now
@@ -162,5 +168,135 @@ class RulesBitsControllerIntegrationTest(
         val ruleEmbedding = testRulesEmbeddingsRepo.findByRuleBitId(uuid)
         ruleEmbedding.shouldBeNull()
     }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    ///// replaceRuleBit ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    @TestFactory
+    fun `replaceRuleBit() Replace rule bits text and remove embedding, when inBatch is true or not specified`() =
+        listOf(
+        """{"text": "$text", "inBatch": true}""",
+        """{"text": "$text"}"""
+    ).map {
+        dynamicTest(" -> '$it'") {
+            val uuid: UUID = UUID.randomUUID()
+            val originalText = aRandomUniqueString()
+            val creationTime = now.minusSeconds(50_000)
+            rulesBitsRepo.insert(uuid, Game.MAUSRITTER, originalText, creationTime)
+            val embeddingId: UUID = UUID.randomUUID()
+            val embedding = anEmbedding()
+            rulesEmbeddingRepo.insertRuleEmbedding(embeddingId, uuid, Game.MAUSRITTER.name, embedding,
+                originalText, now)
+
+            val result = given()
+                .contentType(ContentType.JSON)
+                .body(it)
+                .`when`()
+                .put("/rules/bits/$uuid")
+                .then()
+                .statusCode(200)
+                .extract()
+                .`as`(MessageResponse::class.java)
+
+            result.message shouldBe "Rule bit $uuid successfully replaced!"
+            val ruleBit = testRulesBitsRepo.findById(uuid)
+            ruleBit.shouldNotBeNull()
+            ruleBit.embeddingStatus shouldBe RuleBitsEmbeddingStatus.UNEMBEDDED.name
+            ruleBit.text shouldBe text
+            ruleBit.game shouldBe Game.MAUSRITTER.name
+            ruleBit.createdOn shouldBe creationTime
+            ruleBit.updatedOn shouldBe now
+            val ruleEmbedding = testRulesEmbeddingsRepo.findByRuleBitId(uuid)
+            ruleEmbedding.shouldBeNull()
+        }
+    }
+
+    @Test fun `replaceRuleBit() Returns 404 when rule bit is missing`() {
+        testRulesBitsRepo.findById(uuid).shouldBeNull()
+
+        val result = given()
+            .contentType(ContentType.JSON)
+            .body("""{"text": "$text", "inBatch": false}""")
+            .`when`()
+            .put("/rules/bits/$uuid")
+            .then()
+            .statusCode(404)
+            .extract()
+            .`as`(MessageResponse::class.java)
+
+        result.message shouldBe "Rule bit $uuid is missing!"
+        testRulesBitsRepo.findById(uuid).shouldBeNull()
+    }
+
+    @Test fun `replaceRuleBit() Replace rule bit text and embedding when inBatch is false`() {
+        val originalText = aRandomUniqueString()
+        val embedding = anEmbedding()
+        val creationTime = now.minusSeconds(50_000)
+        rulesBitsRepo.insert(uuid, Game.MAUSRITTER, originalText, creationTime)
+        val embeddingId: UUID = UUID.randomUUID()
+        rulesEmbeddingRepo.insertRuleEmbedding(embeddingId, uuid, Game.MAUSRITTER.name, embedding,
+            originalText, now)
+        coEvery { embeddingsService.createEmbedding(text) } returns embedding.right()
+
+        val result = given()
+            .contentType(ContentType.JSON)
+            .body("""{"text": "$text", "inBatch": false}""")
+            .`when`()
+            .put("/rules/bits/$uuid")
+            .then()
+            .statusCode(200)
+            .extract()
+            .`as`(MessageResponse::class.java)
+
+        result.message shouldBe "Rule bit $uuid successfully replaced!"
+        val ruleBit = testRulesBitsRepo.findById(uuid)
+        ruleBit.shouldNotBeNull()
+        ruleBit.embeddingStatus shouldBe RuleBitsEmbeddingStatus.EMBEDDED.name
+        ruleBit.text shouldBe text
+        ruleBit.game shouldBe Game.MAUSRITTER.name
+        ruleBit.createdOn shouldBe creationTime
+        ruleBit.updatedOn shouldBe now
+        val ruleEmbedding = testRulesEmbeddingsRepo.findByRuleBitId(uuid)
+        ruleEmbedding.shouldNotBeNull()
+        ruleEmbedding.text shouldBe text
+        ruleEmbedding.game shouldBe Game.MAUSRITTER.name
+        ruleEmbedding.createdOn shouldBe now
+        ruleEmbedding.vector shouldBe embedding
+    }
+
+    @Test fun `replaceRuleBit() Replace rule bit text and remove embedding when inBatch is false and embedding creation fails`() {
+        val originalText = aRandomUniqueString()
+        val embedding = anEmbedding()
+        val creationTime = now.minusSeconds(50_000)
+        rulesBitsRepo.insert(uuid, Game.MAUSRITTER, originalText, creationTime)
+        val embeddingId: UUID = UUID.randomUUID()
+        rulesEmbeddingRepo.insertRuleEmbedding(embeddingId, uuid, Game.MAUSRITTER.name, embedding,
+            originalText, now)
+        coEvery { embeddingsService.createEmbedding(text) } returns EmbeddingCreationFailure.left()
+
+        val result = given()
+            .contentType(ContentType.JSON)
+            .body("""{"text": "$text", "inBatch": false}""")
+            .`when`()
+            .put("/rules/bits/$uuid")
+            .then()
+            .statusCode(200)
+            .extract()
+            .`as`(MessageResponse::class.java)
+
+        result.message shouldBe "Rule bit $uuid successfully replaced! But embedding creation failed!"
+        val ruleBit = testRulesBitsRepo.findById(uuid)
+        ruleBit.shouldNotBeNull()
+        ruleBit.embeddingStatus shouldBe RuleBitsEmbeddingStatus.UNEMBEDDED.name
+        ruleBit.text shouldBe text
+        ruleBit.game shouldBe Game.MAUSRITTER.name
+        ruleBit.createdOn shouldBe creationTime
+        ruleBit.updatedOn shouldBe now
+        val ruleEmbedding = testRulesEmbeddingsRepo.findByRuleBitId(uuid)
+        ruleEmbedding.shouldBeNull()
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 }

@@ -54,6 +54,14 @@ class RulesEmbeddingRepository(
         return jdbcTemplate.query(sql, params, RuleEmbeddingRowMapper)
     }
 
+    fun deleteByRuleId(uuid: UUID) {
+        val sql = """
+            DELETE FROM btm.rules_embeddings
+            WHERE rule_bit_id = :uuid;
+        """
+        jdbcTemplate.update(sql, mapOf("uuid" to uuid))
+    }
+
 }
 
 class RuleEmbedding(

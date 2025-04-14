@@ -55,4 +55,14 @@ class RulesEmbeddingsDaoJdbcImpl(
         }
     }
 
+    override fun deleteByRuleId(ruleBitId: UUID): Either<PersistenceFailure, Unit> {
+        return try {
+            rulesEmbeddingRepo.deleteByRuleId(ruleBitId)
+            Unit.right()
+        } catch (e: Exception) {
+            logger.error("Rule embedding delete failure!", e)
+            PersistenceFailure("Rule embedding persistence failure!", e).left()
+        }
+    }
+
 }
