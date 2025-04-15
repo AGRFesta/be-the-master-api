@@ -1,7 +1,6 @@
 package org.agrfesta.btm.api.persistence.jdbc.repositories
 
 import com.pgvector.PGvector
-import org.agrfesta.btm.api.model.Embedding
 import org.springframework.jdbc.core.RowMapper
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
@@ -12,26 +11,26 @@ import java.time.Instant
 import java.util.*
 
 @Repository
-class RulesEmbeddingRepository(
+class EmbeddingRepository(
     private val jdbcTemplate: NamedParameterJdbcTemplate
 ) {
 
-    fun insertRuleEmbedding(
+    fun insertEmbedding(
         id: UUID,
-        ruleBitId: UUID,
+        textBitId: UUID,
         game: String,
         vector: FloatArray,
         text: String,
         createdOn: Instant
     ) {
         val sql = """
-        INSERT INTO btm.rules_embeddings (id, rule_bit_id, game, vector, text, created_on)
-        VALUES (:id, :ruleBitId, CAST(:game AS game_enum), CAST(:vector AS vector), :text, :createdOn);
+        INSERT INTO btm.embeddings (id, text_bit_id, game, vector, text, created_on)
+        VALUES (:id, :textBitId, CAST(:game AS game_enum), CAST(:vector AS vector), :text, :createdOn);
         """
 
         val params = mapOf(
             "id" to id,
-            "ruleBitId" to ruleBitId,
+            "textBitId" to textBitId,
             "game" to game,
             "vector" to PGvector(vector),
             "text" to text,
@@ -41,9 +40,9 @@ class RulesEmbeddingRepository(
         jdbcTemplate.update(sql, params)
     }
 
-    fun getNearestRulesEmbeddings(target: Embedding, game: String): List<RuleEmbedding> {
+    fun getNearestEmbeddings(target: FloatArray, game: String): List<Embedding> {
         val sql = """
-            SELECT * FROM btm.rules_embeddings 
+            SELECT * FROM btm.embeddings 
             WHERE game = CAST(:game AS game_enum) 
             ORDER BY vector <-> :target LIMIT 5
         """.trimIndent()
@@ -51,20 +50,20 @@ class RulesEmbeddingRepository(
             "game" to game,
             "target" to PGvector(target)
         ))
-        return jdbcTemplate.query(sql, params, RuleEmbeddingRowMapper)
+        return jdbcTemplate.query(sql, params, EmbeddingRowMapper)
     }
 
-    fun deleteByRuleId(uuid: UUID) {
+    fun deleteByTextBitId(uuid: UUID) {
         val sql = """
-            DELETE FROM btm.rules_embeddings
-            WHERE rule_bit_id = :uuid;
+            DELETE FROM btm.embeddings
+            WHERE text_bit_id = :uuid;
         """
         jdbcTemplate.update(sql, mapOf("uuid" to uuid))
     }
 
 }
 
-class RuleEmbedding(
+class Embedding(
     val id: UUID,
     val game: String,
     val vector: FloatArray,
@@ -72,8 +71,8 @@ class RuleEmbedding(
     val createdOn: Instant
 )
 
-object RuleEmbeddingRowMapper: RowMapper<RuleEmbedding> {
-    override fun mapRow(rs: ResultSet, rowNum: Int) = RuleEmbedding(
+object EmbeddingRowMapper: RowMapper<Embedding> {
+    override fun mapRow(rs: ResultSet, rowNum: Int) = Embedding(
         id = UUID.fromString(rs.getString("id")),
         game = rs.getString("game"),
         vector = (rs.getObject("vector") as PGvector?)?.toArray() ?: error("vector missing"),

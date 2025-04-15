@@ -1,9 +1,9 @@
 package org.agrfesta.btm.api.persistence
 
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
-import io.mockk.every
 import io.restassured.RestAssured
 import org.agrfesta.btm.api.model.Game
+import org.agrfesta.btm.api.model.Topic
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -20,7 +20,7 @@ import org.testcontainers.utility.DockerImageName
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
 @ActiveProfiles("test")
-class GameEnumMatchTest(
+class EnumsMatchTest(
     @Autowired private val jdbcTemplate: JdbcTemplate
 ) {
     companion object {
@@ -45,6 +45,16 @@ class GameEnumMatchTest(
         ) { rs, _ -> rs.getString(1) }
 
         val kotlinEnumValues: List<String> = Game.entries.map { it.name }
+
+        kotlinEnumValues.shouldContainExactlyInAnyOrder(postgresEnumValues)
+    }
+
+    @Test fun `verify PostgreSQL topic_enum matches Kotlin Topic enum`() {
+        val postgresEnumValues: List<String> = jdbcTemplate.query(
+            "SELECT unnest(enum_range(NULL::topic_enum))::text"
+        ) { rs, _ -> rs.getString(1) }
+
+        val kotlinEnumValues: List<String> = Topic.entries.map { it.name }
 
         kotlinEnumValues.shouldContainExactlyInAnyOrder(postgresEnumValues)
     }

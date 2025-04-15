@@ -6,7 +6,7 @@ import kotlinx.coroutines.runBlocking
 import org.agrfesta.btm.api.model.Embedding
 import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.persistence.PartiesDao
-import org.agrfesta.btm.api.persistence.RulesEmbeddingsDao
+import org.agrfesta.btm.api.persistence.EmbeddingsDao
 import org.agrfesta.btm.api.persistence.jdbc.repositories.GlossariesRepository
 import org.agrfesta.btm.api.services.EmbeddingsService
 import org.agrfesta.btm.api.services.Tokenizer
@@ -30,7 +30,7 @@ class PromptsController(
     private val tokenizer: Tokenizer,
     private val partiesDao: PartiesDao,
     private val embeddingsService: EmbeddingsService,
-    private val rulesEmbeddingsDao: RulesEmbeddingsDao,
+    private val embeddingsDao: EmbeddingsDao,
     private val glossariesRepository: GlossariesRepository
 ) {
 
@@ -45,7 +45,7 @@ class PromptsController(
                     is Left -> status(INTERNAL_SERVER_ERROR).body("Failure!")
                     is Right -> {
                         val target: Embedding = targetResult.value
-                        when (val nearestResult = rulesEmbeddingsDao.nearestRules(party.game, target)) {
+                        when (val nearestResult = embeddingsDao.nearestTextBits(party.game, target)) {
                             is Left -> status(INTERNAL_SERVER_ERROR).body("Failure!")
                             is Right -> {
                                 val partySection: String = party.members.joinToString(separator = "\n")

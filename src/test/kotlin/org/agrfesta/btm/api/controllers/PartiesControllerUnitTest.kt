@@ -4,14 +4,10 @@ import arrow.core.left
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.ninjasquad.springmockk.MockkBean
 import io.kotest.matchers.shouldBe
-import io.mockk.coVerify
 import io.mockk.every
-import io.mockk.verify
 import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.model.PersistenceFailure
 import org.agrfesta.btm.api.persistence.PartiesDao
-import org.agrfesta.btm.api.persistence.RulesBitsDao
-import org.agrfesta.btm.api.persistence.jdbc.repositories.CharactersRepository
 import org.agrfesta.test.mothers.aRandomUniqueString
 import org.agrfesta.test.mothers.aSheet
 import org.junit.jupiter.api.Test
