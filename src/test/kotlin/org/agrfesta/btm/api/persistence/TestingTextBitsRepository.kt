@@ -9,21 +9,21 @@ import java.time.Instant
 import java.util.*
 
 @Service
-class TestingRulesBitsRepository(
+class TestingTextBitsRepository(
     private val jdbcTemplate: NamedParameterJdbcTemplate
 ) {
 
-    fun findById(id: UUID): RuleBit? {
-        val sql = """SELECT * FROM btm.rules_bits WHERE id = :id;"""
+    fun findById(id: UUID): TextBit? {
+        val sql = """SELECT * FROM btm.text_bits WHERE id = :id;"""
         val params = MapSqlParameterSource(mapOf("id" to id))
-        return jdbcTemplate.query(sql, params, RuleBitRowMapper)
+        return jdbcTemplate.query(sql, params, TextBitRowMapper)
             .firstOrNull()
     }
 
 }
 
-object RuleBitRowMapper: RowMapper<RuleBit> {
-    override fun mapRow(rs: ResultSet, rowNum: Int) = RuleBit(
+object TextBitRowMapper: RowMapper<TextBit> {
+    override fun mapRow(rs: ResultSet, rowNum: Int) = TextBit(
         id = UUID.fromString(rs.getString("id")),
         game = rs.getString("game"),
         text = rs.getString("text"),
@@ -33,7 +33,7 @@ object RuleBitRowMapper: RowMapper<RuleBit> {
     )
 }
 
-class RuleBit(
+class TextBit(
     val id: UUID,
     val game: String,
     val text: String,

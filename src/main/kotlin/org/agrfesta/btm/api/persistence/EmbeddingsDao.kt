@@ -7,14 +7,14 @@ import org.agrfesta.btm.api.model.PersistenceFailure
 import org.springframework.transaction.annotation.Transactional
 import java.util.*
 
-interface RulesEmbeddingsDao {
+interface EmbeddingsDao {
 
     @Transactional
-    fun persist(ruleBitId: UUID, game: Game, embedding: Embedding, text: String): Either<PersistenceFailure, UUID>
+    fun persist(textBitId: UUID, game: Game, embedding: Embedding, text: String): Either<PersistenceFailure, UUID>
 
-    fun nearestRules(game: Game, embedding: Embedding): Either<PersistenceFailure, List<String>>
+    fun nearestTextBits(game: Game, embedding: Embedding): Either<PersistenceFailure, List<String>>
 
     @Transactional
-    fun deleteByRuleId(ruleBitId: UUID): Either<PersistenceFailure, Unit>
+    fun deleteByTextBitId(textBitId: UUID): Either<PersistenceFailure, Unit>
 
 }
