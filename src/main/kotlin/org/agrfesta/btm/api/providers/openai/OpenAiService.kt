@@ -4,9 +4,11 @@ import arrow.core.Either
 import org.agrfesta.btm.api.model.Embedding
 import org.agrfesta.btm.api.model.EmbeddingCreationFailure
 import org.agrfesta.btm.api.services.EmbeddingsService
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Service
 
 @Service
+@ConditionalOnProperty(name = ["embeddings.provider"], havingValue = "openai")
 class OpenAiService(
     private val openAiClient: OpenAiClient
 ): EmbeddingsService {

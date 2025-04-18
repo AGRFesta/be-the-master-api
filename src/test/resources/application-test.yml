@@ -2,3 +2,8 @@ providers:
   openai:
     base-url: https://openai.fake
     api-key: somekey
+  e5:
+    base-url: http://e5.fake
+
+embeddings:
+  provider: openai
