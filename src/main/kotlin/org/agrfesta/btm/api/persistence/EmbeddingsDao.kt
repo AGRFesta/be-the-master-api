@@ -10,11 +10,11 @@ import java.util.*
 interface EmbeddingsDao {
 
     @Transactional
-    fun persist(textBitId: UUID, game: Game, embedding: Embedding, text: String): Either<PersistenceFailure, UUID>
+    fun persist(translationId: UUID, embedding: Embedding): Either<PersistenceFailure, UUID>
 
     fun nearestTextBits(game: Game, embedding: Embedding): Either<PersistenceFailure, List<String>>
 
     @Transactional
-    fun deleteByTextBitId(textBitId: UUID): Either<PersistenceFailure, Unit>
+    fun deleteByTranslationId(uuid: UUID): Either<PersistenceFailure, Unit>
 
 }

@@ -1,6 +1,8 @@
 package org.agrfesta.btm.api.persistence.jdbc.repositories
 
 import com.pgvector.PGvector
+import org.agrfesta.btm.api.persistence.jdbc.entities.EmbeddingEntity
+import org.springframework.dao.EmptyResultDataAccessException
 import org.springframework.jdbc.core.RowMapper
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
@@ -17,30 +19,37 @@ class EmbeddingRepository(
 
     fun insertEmbedding(
         id: UUID,
-        textBitId: UUID,
-        game: String,
+        translationId: UUID,
         vector: FloatArray,
-        text: String,
         createdOn: Instant
     ) {
         val sql = """
-        INSERT INTO btm.embeddings (id, text_bit_id, game, vector, text, created_on)
-        VALUES (:id, :textBitId, CAST(:game AS game_enum), CAST(:vector AS vector), :text, :createdOn);
+        INSERT INTO btm.embeddings (id, translation_id, vector, created_on)
+        VALUES (:id, :translationId, CAST(:vector AS vector), :createdOn);
         """
 
         val params = mapOf(
             "id" to id,
-            "textBitId" to textBitId,
-            "game" to game,
+            "translationId" to translationId,
             "vector" to PGvector(vector),
-            "text" to text,
             "createdOn" to Timestamp.from(createdOn)
         )
 
         jdbcTemplate.update(sql, params)
     }
 
-    fun getNearestEmbeddings(target: FloatArray, game: String): List<Embedding> {
+    fun findEmbeddingByTranslationId(translationId: UUID): EmbeddingEntity? {
+        val sql = """SELECT * FROM btm.embeddings WHERE translation_id = :translationId"""
+        val params = mapOf("translationId" to translationId)
+        val embedding: EmbeddingEntity? = try {
+            jdbcTemplate.queryForObject(sql, params, EmbeddingRowMapper)
+        } catch (e: EmptyResultDataAccessException) {
+            null
+        }
+        return embedding
+    }
+
+    fun getNearestEmbeddings(target: FloatArray, game: String): List<EmbeddingEntity> {
         val sql = """
             SELECT * FROM btm.embeddings 
             WHERE game = CAST(:game AS game_enum) 
@@ -53,30 +62,21 @@ class EmbeddingRepository(
         return jdbcTemplate.query(sql, params, EmbeddingRowMapper)
     }
 
-    fun deleteByTextBitId(uuid: UUID) {
+    fun deleteByTranslationId(uuid: UUID) {
         val sql = """
             DELETE FROM btm.embeddings
-            WHERE text_bit_id = :uuid;
+            WHERE translation_id = :uuid;
         """
         jdbcTemplate.update(sql, mapOf("uuid" to uuid))
     }
 
 }
 
-class Embedding(
-    val id: UUID,
-    val game: String,
-    val vector: FloatArray,
-    val text: String,
-    val createdOn: Instant
-)
-
-object EmbeddingRowMapper: RowMapper<Embedding> {
-    override fun mapRow(rs: ResultSet, rowNum: Int) = Embedding(
+object EmbeddingRowMapper: RowMapper<EmbeddingEntity> {
+    override fun mapRow(rs: ResultSet, rowNum: Int) = EmbeddingEntity(
         id = UUID.fromString(rs.getString("id")),
-        game = rs.getString("game"),
+        translationId = UUID.fromString(rs.getString("translation_id")),
         vector = (rs.getObject("vector") as PGvector?)?.toArray() ?: error("vector missing"),
-        text = rs.getString("text"),
         createdOn = rs.getTimestamp("created_on").toInstant()
     )
 }

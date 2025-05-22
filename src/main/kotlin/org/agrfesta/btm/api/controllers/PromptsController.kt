@@ -8,7 +8,7 @@ import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.persistence.PartiesDao
 import org.agrfesta.btm.api.persistence.EmbeddingsDao
 import org.agrfesta.btm.api.persistence.jdbc.repositories.GlossariesRepository
-import org.agrfesta.btm.api.services.EmbeddingsService
+import org.agrfesta.btm.api.services.EmbeddingsProvider
 import org.agrfesta.btm.api.services.Tokenizer
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR
@@ -29,7 +29,7 @@ class PromptsController(
     @Value("\${translation.prompt.suggested.glossary.introduction}") private val suggestedGlossaryIntro: String,
     private val tokenizer: Tokenizer,
     private val partiesDao: PartiesDao,
-    private val embeddingsService: EmbeddingsService,
+    private val embeddingsProvider: EmbeddingsProvider,
     private val embeddingsDao: EmbeddingsDao,
     private val glossariesRepository: GlossariesRepository
 ) {
@@ -40,7 +40,7 @@ class PromptsController(
             is Left -> status(INTERNAL_SERVER_ERROR).body("Failure!")
             is Right -> {
                 val party = partyResult.value
-                val targetResult = runBlocking { embeddingsService.createEmbedding(request.prompt) }
+                val targetResult = runBlocking { embeddingsProvider.createEmbedding(request.prompt) }
                 when (targetResult) {
                     is Left -> status(INTERNAL_SERVER_ERROR).body("Failure!")
                     is Right -> {
@@ -66,7 +66,7 @@ class PromptsController(
 
     @PostMapping("/embedding")
     fun createEmbedding(@RequestBody request: PromptRequest): ResponseEntity<Any> {
-        val result = runBlocking { embeddingsService.createEmbedding(request.prompt) }
+        val result = runBlocking { embeddingsProvider.createEmbedding(request.prompt) }
         return when (result) {
             is Left -> status(INTERNAL_SERVER_ERROR).body("Failure!")
             is Right -> status(OK).body(result)

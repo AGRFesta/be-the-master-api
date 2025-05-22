@@ -13,7 +13,7 @@ class TestingTextBitsRepository(
     private val jdbcTemplate: NamedParameterJdbcTemplate
 ) {
 
-    fun findById(id: UUID): TextBit? {
+    fun findById(id: UUID): TextBitEntity? {
         val sql = """SELECT * FROM btm.text_bits WHERE id = :id;"""
         val params = MapSqlParameterSource(mapOf("id" to id))
         return jdbcTemplate.query(sql, params, TextBitRowMapper)
@@ -22,22 +22,20 @@ class TestingTextBitsRepository(
 
 }
 
-object TextBitRowMapper: RowMapper<TextBit> {
-    override fun mapRow(rs: ResultSet, rowNum: Int) = TextBit(
+object TextBitRowMapper: RowMapper<TextBitEntity> {
+    override fun mapRow(rs: ResultSet, rowNum: Int) = TextBitEntity(
         id = UUID.fromString(rs.getString("id")),
         game = rs.getString("game"),
-        text = rs.getString("text"),
-        embeddingStatus = rs.getString("embedding_status"),
+        topic = rs.getString("topic"),
         createdOn = rs.getTimestamp("created_on").toInstant(),
         updatedOn = rs.getTimestamp("updated_on")?.toInstant()
     )
 }
 
-class TextBit(
+class TextBitEntity(
     val id: UUID,
     val game: String,
-    val text: String,
-    val embeddingStatus: String,
+    val topic: String,
     val createdOn: Instant,
     val updatedOn: Instant?
 )
