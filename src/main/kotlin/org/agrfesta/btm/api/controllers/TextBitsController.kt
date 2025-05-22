@@ -2,11 +2,15 @@ package org.agrfesta.btm.api.controllers
 
 import arrow.core.Either.Left
 import arrow.core.Either.Right
+import kotlinx.coroutines.runBlocking
 import org.agrfesta.btm.api.model.EmbeddingCreationFailure
 import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.model.PersistenceFailure
+import org.agrfesta.btm.api.model.TextBit
 import org.agrfesta.btm.api.model.Topic
-import org.agrfesta.btm.api.persistence.TextBitsDao
+import org.agrfesta.btm.api.model.Translation
+import org.agrfesta.btm.api.services.Embedder
+import org.agrfesta.btm.api.services.EmbeddingsProvider
 import org.agrfesta.btm.api.services.TextBitsService
 import org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR
 import org.springframework.http.ResponseEntity
@@ -14,9 +18,9 @@ import org.springframework.http.ResponseEntity.badRequest
 import org.springframework.http.ResponseEntity.internalServerError
 import org.springframework.http.ResponseEntity.ok
 import org.springframework.http.ResponseEntity.status
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
@@ -26,8 +30,9 @@ import java.util.*
 @RequestMapping("/text-bits")
 class TextBitsController(
     private val textBitsService: TextBitsService,
-    private val textBitsDao: TextBitsDao
+    private val embeddingsProvider: EmbeddingsProvider
 ) {
+    private val embedder: Embedder = {text -> runBlocking { embeddingsProvider.createEmbedding(text) }}
 
     /**
      * POST /bits
@@ -56,20 +61,27 @@ class TextBitsController(
      */
     @PostMapping
     fun createTextBit(@RequestBody request: TextBitCreationRequest): ResponseEntity<Any> {
-        if (request.text.isBlank()) {
+        if (request.originalText.text.isBlank()) {
             return badRequest().body(MessageResponse("Text must not be empty!"))
         }
-        when (val insertResult = textBitsDao.persist(request.game, request.text, request.topic)) {
+        val textBit = try {
+            request.toTextBit()
+        } catch (e: IllegalArgumentException) {
+            return badRequest().body(MessageResponse(e.message ?: "no message"))
+        }
+
+        when (val insertResult = textBitsService.createTextBit(request.game, request.topic)) {
             is Left -> return status(INTERNAL_SERVER_ERROR).body(MessageResponse("Unable to create text bit!"))
             is Right -> {
-                if (!request.inBatch) {
-                    val embedResult = textBitsService.embedTextBit(insertResult.value, request.game, request.text)
-                    if (embedResult.isLeft()) {
-                        return ok().body(MessageResponse(
-                            "Text bit ${insertResult.value} successfully persisted! But embedding creation failed!"))
-                    }
+                val textBitId = insertResult.value
+                val languageFailures = mutableSetOf<String>()
+                textBit.original.persist(textBitId, request.inBatch, original = true, languageFailures)
+                textBit.translations.forEach {
+                    it.persist(textBitId, request.inBatch, original = false, languageFailures)
                 }
-                return ok().body(MessageResponse("Text bit ${insertResult.value} successfully persisted!"))
+                val warning = if (languageFailures.isEmpty()) ""
+                else " Failed embeddings creation for languages $languageFailures"
+                return ok().body(MessageResponse("Text bit successfully persisted!$warning"))
             }
         }
     }
@@ -103,8 +115,8 @@ class TextBitsController(
      * - Embedding is skipped for batch operations
      * - Embedding failure doesn't stop text's bit replacement
      */
-    @PutMapping("/{id}")
-    fun replaceTextBit(@PathVariable id: UUID, @RequestBody request: TextBitReplacementRequest): ResponseEntity<Any> {
+    @PatchMapping("/{id}")
+    fun update(@PathVariable id: UUID, @RequestBody request: TextBitTranslationPatchRequest): ResponseEntity<Any> {
         if (request.text.isBlank()) {
             return badRequest().body(MessageResponse("Text must not be empty!"))
         }
@@ -113,16 +125,38 @@ class TextBitsController(
                 ?: return status(404).body(MessageResponse("Text bit $id is missing!"))
         } catch (e: Exception) {
             return internalServerError()
-                .body(MessageResponse("Unable to replace text bit $id!"))
+                .body(MessageResponse("Unable to fetch text bit!"))
         }
-        return when(val result = textBitsService.replaceTextBit(id, textBit.game, request.text, request.inBatch)) {
+
+        return when(val result = textBitsService.replaceTranslation(
+            textBit.id,
+            request.language,
+            request.text,
+            if (request.inBatch) null else embedder)
+        ) {
             is Left -> when(result.value) {
                 EmbeddingCreationFailure -> ok()
-                    .body(MessageResponse("Text bit $id successfully replaced! But embedding creation failed!"))
+                    .body(MessageResponse("Text bit $id successfully patched! But embedding creation failed!"))
                 is PersistenceFailure -> internalServerError()
                     .body(MessageResponse("Unable to replace text bit $id!"))
             }
-            is Right -> ok().body(MessageResponse("Text bit $id successfully replaced!"))
+            is Right -> ok().body(MessageResponse("Text bit $id successfully patched!"))
+        }
+    }
+
+    private fun Translation.persist(
+        textBitId: UUID,
+        inBatch: Boolean,
+        original: Boolean,
+        languageFailures: MutableSet<String>
+    ) {
+        textBitsService.persistTranslation(
+            this,
+            textBitId,
+            original,
+            if (inBatch) null else embedder
+        ).onLeft {
+            languageFailures.add(language)
         }
     }
 
@@ -130,12 +164,22 @@ class TextBitsController(
 
 data class TextBitCreationRequest(
     val game: Game,
-    val text: String,
     val topic: Topic,
-    val inBatch: Boolean = true
-)
+    val originalText: Translation,
+    val translations: Collection<Translation> = emptyList(),
+    val inBatch: Boolean = false
+) {
+    fun toTextBit() = TextBit(
+        id = UUID.randomUUID(),
+        game = game,
+        topic = topic,
+        original = originalText,
+        translations = translations.toSet()
+    )
+}
 
-data class TextBitReplacementRequest(
+data class TextBitTranslationPatchRequest(
     val text: String,
-    val inBatch: Boolean = true
+    val language: String,
+    val inBatch: Boolean = false
 )

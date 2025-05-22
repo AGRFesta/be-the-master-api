@@ -23,19 +23,15 @@ class EmbeddingsDaoJdbcImpl(
     private val logger by LoggerDelegate()
 
     override fun persist(
-        textBitId: UUID,
-        game: Game,
-        embedding: Embedding,
-        text: String
+        translationId: UUID,
+        embedding: Embedding
     ): Either<PersistenceFailure, UUID> {
         val uuid = randomGenerator.uuid()
         return try {
             embeddingRepo.insertEmbedding(
                 id = uuid,
-                textBitId = textBitId,
-                game = game.name,
+                translationId = translationId,
                 vector = embedding,
-                text = text,
                 createdOn = timeService.nowNoNano()
             )
             uuid.right()
@@ -47,17 +43,18 @@ class EmbeddingsDaoJdbcImpl(
 
     override fun nearestTextBits(game: Game, target: Embedding): Either<PersistenceFailure, List<String>> {
         return try {
-            val result = embeddingRepo.getNearestEmbeddings(target, game.name)
-            result.map { it.text }.toList().right()
+            TODO("must be re-implemented")
+//            val result = embeddingRepo.getNearestEmbeddings(target, game.name)
+//            result.map { it.text }.toList().right()
         } catch (e: Exception) {
             logger.error("Text embedding persistence failure!", e)
             PersistenceFailure("Text embedding persistence failure!", e).left()
         }
     }
 
-    override fun deleteByTextBitId(textBitId: UUID): Either<PersistenceFailure, Unit> {
+    override fun deleteByTranslationId(uuid: UUID): Either<PersistenceFailure, Unit> {
         return try {
-            embeddingRepo.deleteByTextBitId(textBitId)
+            embeddingRepo.deleteByTranslationId(uuid)
             Unit.right()
         } catch (e: Exception) {
             logger.error("Text embedding delete failure!", e)

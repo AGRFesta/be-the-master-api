@@ -6,7 +6,7 @@ import arrow.core.right
 import kotlinx.coroutines.runBlocking
 import org.agrfesta.btm.api.model.Embedding
 import org.agrfesta.btm.api.model.EmbeddingCreationFailure
-import org.agrfesta.btm.api.services.EmbeddingsService
+import org.agrfesta.btm.api.services.EmbeddingsProvider
 import org.agrfesta.btm.api.services.Tokenizer
 import org.agrfesta.btm.api.services.utils.LoggerDelegate
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -16,7 +16,7 @@ import org.springframework.stereotype.Service
 @ConditionalOnProperty(name = ["embeddings.provider"], havingValue = "e5")
 class E5Service(
     private val client: E5Client
-): EmbeddingsService, Tokenizer {
+): EmbeddingsProvider, Tokenizer {
     private val logger by LoggerDelegate()
 
     override val name: String

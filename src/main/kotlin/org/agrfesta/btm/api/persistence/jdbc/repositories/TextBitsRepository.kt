@@ -2,8 +2,9 @@ package org.agrfesta.btm.api.persistence.jdbc.repositories
 
 import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.model.TextBit
-import org.agrfesta.btm.api.model.TextBitEmbeddingStatus
 import org.agrfesta.btm.api.model.Topic
+import org.agrfesta.btm.api.model.Translation
+import org.springframework.dao.DataAccessException
 import org.springframework.dao.EmptyResultDataAccessException
 import org.springframework.jdbc.core.RowMapper
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
@@ -29,44 +30,23 @@ class TextBitsRepository(
         return area
     }
 
-    fun insert(id: UUID, game: Game, text: String, topic: Topic, createdOn: Instant) {
+    /**
+     * @throws DataAccessException
+     */
+    fun insert(id: UUID, game: Game, topic: Topic, createdOn: Instant) {
         val sql = """
-        INSERT INTO btm.text_bits (id, game, embedding_status, text, created_on, topic)
-        VALUES (:id, CAST(:game AS game_enum), 'UNEMBEDDED', :text, :createdOn, CAST(:topic AS topic_enum));
+        INSERT INTO btm.text_bits (id, game, created_on, topic)
+        VALUES (:id, CAST(:game AS game_enum), :createdOn, CAST(:topic AS topic_enum));
         """
 
         val params = mapOf(
             "id" to id,
             "game" to game.name,
-            "text" to text,
             "topic" to topic.name,
             "createdOn" to Timestamp.from(createdOn)
         )
 
         jdbcTemplate.update(sql, params)
-    }
-
-    fun update(id: UUID, updatedOn: Instant, embeddingStatus: TextBitEmbeddingStatus, text: String? = null) {
-        val sql = StringBuilder("""
-        UPDATE btm.text_bits
-        SET embedding_status = CAST(:embeddingStatus AS embedding_status_enum),
-            updated_on = :updatedOn
-        """)
-
-        val params = mutableMapOf(
-            "id" to id,
-            "embeddingStatus" to embeddingStatus.name,
-            "updatedOn" to Timestamp.from(updatedOn)
-        )
-
-        text?.let {
-            sql.append(", text = :text")
-            params["text"] = it
-        }
-
-        sql.append(" WHERE id = :id")
-
-        jdbcTemplate.update(sql.toString(), params)
     }
 
     fun delete(uuid: UUID) {
@@ -83,7 +63,9 @@ object TextBitMapper: RowMapper<TextBit> {
     override fun mapRow(rs: ResultSet, rowNum: Int) = TextBit(
         id = rs.getUuid("id"),
         game = Game.valueOf(rs.getString("game")),
-        text = rs.getString("text")
+        topic = Topic.valueOf(rs.getString("topic")),
+        original = Translation("",""), //TODO map
+        translations = emptySet()//TODO map
     )
 }
 

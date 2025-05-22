@@ -1,32 +1,37 @@
 package org.agrfesta.btm.api.persistence
 
-import arrow.core.Either
 import org.agrfesta.btm.api.model.Game
-import org.agrfesta.btm.api.model.PersistenceFailure
 import org.agrfesta.btm.api.model.TextBit
-import org.agrfesta.btm.api.model.TextBitEmbeddingStatus
 import org.agrfesta.btm.api.model.Topic
 import org.springframework.transaction.annotation.Transactional
 import java.util.*
 
 interface TextBitsDao {
 
+    /**
+     * Finds [TextBit] by [textBitId].
+     *
+     * @param textBitId [TextBit] unique identifier.
+     * @return found [TextBit] otherwise null.
+     */
     fun findTextBit(textBitId: UUID): TextBit?
 
+    /**
+     * Persists a [TextBit] by [topic] and [game].
+     *
+     * @param topic [TextBit] related [Topic].
+     * @param game [TextBit] related [Game].
+     * @return [UUID] assigned to persisted [TextBit].
+     */
     @Transactional
-    fun persist(game: Game, text: String, topic: Topic): Either<PersistenceFailure, UUID>
+    fun persist(topic: Topic, game: Game): UUID
 
+    /**
+     * Deletes a [TextBit] by [textBitId].
+     *
+     * @param textBitId [TextBit] unique identifier.
+     */
     @Transactional
-    fun replaceText(textBitId: UUID, text: String): Either<PersistenceFailure, Unit>
-
-    @Transactional
-    fun update(
-        textBitId: UUID,
-        embeddingStatus: TextBitEmbeddingStatus,
-        text: String? = null
-    ): Either<PersistenceFailure, Unit>
-
-    @Transactional
-    fun delete(textBitId: UUID): Either<PersistenceFailure, Unit>
+    fun delete(textBitId: UUID)
 
 }

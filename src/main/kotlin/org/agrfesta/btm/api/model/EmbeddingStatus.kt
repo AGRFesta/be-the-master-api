@@ -1,5 +1,5 @@
 package org.agrfesta.btm.api.model
 
-enum class TextBitEmbeddingStatus {
+enum class EmbeddingStatus {
     UNEMBEDDED, IN_PROGRESS, EMBEDDED
 }
