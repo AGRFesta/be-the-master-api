@@ -3,7 +3,7 @@
 [versions]
 kotlin = "1.9.24"
 springboot = "3.4.5"
-ktor = "2.3.11"
+ktor = "2.3.13"
 junit-jupiter-engine = "5.10.2"
 kotest = "5.9.0"
 arrow = "1.2.4"
