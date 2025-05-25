@@ -20,7 +20,8 @@ jobs:
       - name: Generate and submit dependency graph
         uses: gradle/actions/dependency-submission@v4
         with:
-          # Exclude all dependencies that originate solely in the 'buildSrc' project
           dependency-graph-exclude-projets: ':buildSrc'
-          # Exclude dependencies that are only resolved in test classpaths
-          dependency-graph-exclude-configurations: '(?i)\btest(?:Compile|Runtime|Implementation).*\b|^classpath$'
+          dependency-graph-exclude-configurations: >
+            (?i)\btest(?:Compile|Runtime|Implementation).*\b
+            | ^classpath$
+            | ^detachedConfiguration\d+$
