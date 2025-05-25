@@ -21,7 +21,4 @@ jobs:
         uses: gradle/actions/dependency-submission@v4
         with:
           dependency-graph-exclude-projets: ':buildSrc'
-          dependency-graph-exclude-configurations: >
-            (?i)\btest(?:Compile|Runtime|Implementation).*\b
-            | ^classpath$
-            | ^detachedConfiguration\d+$
+          dependency-graph-exclude-configurations: '(?i)\btest(?:Compile|Runtime|Implementation).*\b|^classpath$|^detachedConfiguration\d+$'
