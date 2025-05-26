@@ -64,7 +64,6 @@ object TextBitMapper: RowMapper<TextBit> {
         id = rs.getUuid("id"),
         game = Game.valueOf(rs.getString("game")),
         topic = Topic.valueOf(rs.getString("topic")),
-        original = Translation("",""), //TODO map
         translations = emptySet()//TODO map
     )
 }

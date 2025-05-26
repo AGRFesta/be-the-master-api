@@ -41,7 +41,6 @@ CREATE TABLE btm.translations (
     id UUID PRIMARY KEY,                                  -- Unique identifier
     text_bit_id UUID NOT NULL REFERENCES btm.text_bits(id) ON DELETE CASCADE,
     language_code TEXT NOT NULL,                          -- ISO code (e.g., 'en', 'it')
-    original BOOLEAN NOT NULL DEFAULT FALSE,              -- Whether this is the original version
     text TEXT NOT NULL,                                   -- The actual translated text
     embedding_status embedding_status_enum NOT NULL DEFAULT 'UNEMBEDDED',
     created_on TIMESTAMP NOT NULL DEFAULT NOW()           -- Creation timestamp

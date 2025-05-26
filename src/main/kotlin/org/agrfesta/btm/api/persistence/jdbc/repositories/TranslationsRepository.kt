@@ -19,7 +19,6 @@ class TranslationsRepository(
             id,
             text_bit_id,
             language_code,
-            original,
             text,
             embedding_status,
             created_on
@@ -27,7 +26,6 @@ class TranslationsRepository(
             :id,
             :textBitId,
             :languageCode,
-            :original,
             :text,
             CAST(:embeddingStatus AS embedding_status_enum),
             :createdOn
@@ -38,7 +36,6 @@ class TranslationsRepository(
             "id" to entity.id,
             "textBitId" to entity.textBitId,
             "languageCode" to entity.languageCode,
-            "original" to entity.original,
             "text" to entity.text,
             "embeddingStatus" to entity.embeddingStatus.name,
             "createdOn" to Timestamp.from(entity.createdOn)
@@ -53,7 +50,6 @@ class TranslationsRepository(
                 id,
                 text_bit_id,
                 language_code,
-                original,
                 text,
                 embedding_status,
                 created_on
@@ -70,7 +66,6 @@ class TranslationsRepository(
                     id = UUID.fromString(rs.getString("id")),
                     textBitId = UUID.fromString(rs.getString("text_bit_id")),
                     languageCode = rs.getString("language_code"),
-                    original = rs.getBoolean("original"),
                     text = rs.getString("text"),
                     embeddingStatus = EmbeddingStatus.valueOf(rs.getString("embedding_status")),
                     createdOn = rs.getTimestamp("created_on").toInstant()
@@ -88,7 +83,6 @@ class TranslationsRepository(
                 id,
                 text_bit_id,
                 language_code,
-                original,
                 text,
                 embedding_status,
                 created_on
@@ -103,7 +97,6 @@ class TranslationsRepository(
                 id = UUID.fromString(rs.getString("id")),
                 textBitId = UUID.fromString(rs.getString("text_bit_id")),
                 languageCode = rs.getString("language_code"),
-                original = rs.getBoolean("original"),
                 text = rs.getString("text"),
                 embeddingStatus = EmbeddingStatus.valueOf(rs.getString("embedding_status")),
                 createdOn = rs.getTimestamp("created_on").toInstant()

@@ -30,10 +30,9 @@ class TextBitsService(
     fun persistTranslation(
         translation: Translation,
         textBitId: UUID,
-        original: Boolean,
         embedder: Embedder? = null
     ): Either<BtmFlowFailure, UUID> {
-        val translationId = translationsDao.persist(textBitId, translation, original)
+        val translationId = translationsDao.persist(textBitId, translation)
         return embedder?.let {
             embedder(translation.text).flatMap {
                 embeddingsDao.persist(translationId, it).flatMap {

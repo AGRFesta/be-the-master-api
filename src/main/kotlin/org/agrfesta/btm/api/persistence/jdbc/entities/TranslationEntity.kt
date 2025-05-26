@@ -8,7 +8,6 @@ class TranslationEntity(
     val id: UUID,
     val textBitId: UUID,
     val languageCode: String,
-    val original: Boolean,
     val text: String,
     val embeddingStatus: EmbeddingStatus,
     val createdOn: Instant

@@ -14,9 +14,8 @@ fun aTextBit(
     id: UUID = UUID.randomUUID(),
     game: Game = aGame(),
     topic: Topic = aTopic(),
-    original: Translation = aTranslation(),
     translations: Set<Translation> = emptySet()
-) = TextBit(id, game, topic, original, translations)
+) = TextBit(id, game, topic, translations)
 
 fun aTranslation(
     text: String = aRandomUniqueString(),
@@ -27,18 +26,16 @@ fun Translation.toJsonString() = """{"text": "$text", "language": "$language"}""
 
 fun aTextBitCreationRequest(
     game: Game = aGame(),
-    originalText: Translation = aTranslation(),
+    translation: Translation = aTranslation(),
     topic: Topic = aTopic(),
-    translations: Collection<Translation> = emptyList(),
     inBatch: Boolean? = null
-) = TextBitCreationRequest(game, topic, originalText, translations, inBatch ?: false)
+) = TextBitCreationRequest(game, topic, translation, inBatch ?: false)
 
 fun TextBitCreationRequest.toJsonString() = """
         {
             "game": "$game", 
-            "originalText": ${originalText.toJsonString()}, 
+            "translation": ${translation.toJsonString()}, 
             "topic": "$topic",
-            "translations": ${translations.map { it.toJsonString() }},
             "inBatch": $inBatch
         }
     """.trimIndent()
