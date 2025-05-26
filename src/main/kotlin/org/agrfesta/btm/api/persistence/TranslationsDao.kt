@@ -13,11 +13,10 @@ interface TranslationsDao {
      *
      * @param textBitId [TextBit] unique identifier.
      * @param translation [Translation] data.
-     * @param original true if translation should be persisted as original [TextBit] translation, otherwise false.
      * @return [UUID] assigned to persisted [Translation].
      */
     @Transactional
-    fun persist(textBitId: UUID, translation: Translation, original: Boolean): UUID
+    fun persist(textBitId: UUID, translation: Translation): UUID
 
     /**
      * Fetches a specific language [TextBit]'s [Translation].

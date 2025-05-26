@@ -21,8 +21,7 @@ class TranslationsDaoJdbcImpl(
 
     override fun persist(
         textBitId: UUID,
-        translation: Translation,
-        original: Boolean
+        translation: Translation
     ): UUID {
         val now = timeService.nowNoNano()
         val id = randomGenerator.uuid()
@@ -31,7 +30,6 @@ class TranslationsDaoJdbcImpl(
             textBitId = textBitId,
             text = translation.text,
             languageCode = translation.language,
-            original = original,
             embeddingStatus = EmbeddingStatus.UNEMBEDDED,
             createdOn = now
         ))
@@ -63,7 +61,6 @@ class TranslationsDaoJdbcImpl(
                     id = uuid,
                     textBitId = textBitId,
                     languageCode = language,
-                    original = translation.original,
                     text = newText,
                     embeddingStatus = EmbeddingStatus.UNEMBEDDED,
                     createdOn = timeService.nowNoNano()
@@ -73,8 +70,7 @@ class TranslationsDaoJdbcImpl(
         } else {
             persist(
                 textBitId = textBitId,
-                translation = Translation(text = newText, language = language),
-                original = false
+                translation = Translation(text = newText, language = language)
             )
         }
     }

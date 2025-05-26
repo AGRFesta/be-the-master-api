@@ -61,7 +61,7 @@ class TextBitsController(
      */
     @PostMapping
     fun createTextBit(@RequestBody request: TextBitCreationRequest): ResponseEntity<Any> {
-        if (request.originalText.text.isBlank()) {
+        if (request.translation.text.isBlank()) {
             return badRequest().body(MessageResponse("Text must not be empty!"))
         }
         val textBit = try {
@@ -75,12 +75,12 @@ class TextBitsController(
             is Right -> {
                 val textBitId = insertResult.value
                 val languageFailures = mutableSetOf<String>()
-                textBit.original.persist(textBitId, request.inBatch, original = true, languageFailures)
-                textBit.translations.forEach {
-                    it.persist(textBitId, request.inBatch, original = false, languageFailures)
-                }
+                request.translation.persist(textBitId, request.inBatch, languageFailures)
+//                textBit.translations.forEach {
+//                    it.persist(textBitId, request.inBatch, languageFailures)
+//                }
                 val warning = if (languageFailures.isEmpty()) ""
-                else " Failed embeddings creation for languages $languageFailures"
+                else " Failed embeddings creation."
                 return ok().body(MessageResponse("Text bit successfully persisted!$warning"))
             }
         }
@@ -147,13 +147,11 @@ class TextBitsController(
     private fun Translation.persist(
         textBitId: UUID,
         inBatch: Boolean,
-        original: Boolean,
         languageFailures: MutableSet<String>
     ) {
         textBitsService.persistTranslation(
             this,
             textBitId,
-            original,
             if (inBatch) null else embedder
         ).onLeft {
             languageFailures.add(language)
@@ -165,16 +163,14 @@ class TextBitsController(
 data class TextBitCreationRequest(
     val game: Game,
     val topic: Topic,
-    val originalText: Translation,
-    val translations: Collection<Translation> = emptyList(),
+    val translation: Translation,
     val inBatch: Boolean = false
 ) {
     fun toTextBit() = TextBit(
         id = UUID.randomUUID(),
         game = game,
         topic = topic,
-        original = originalText,
-        translations = translations.toSet()
+        translations = setOf(translation)
     )
 }
 

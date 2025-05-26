@@ -3,8 +3,7 @@ package org.agrfesta.btm.api.controllers
 import arrow.core.left
 import arrow.core.right
 import com.ninjasquad.springmockk.MockkBean
-import io.kotest.matchers.collections.shouldBeEmpty
-import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
+import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -85,30 +84,17 @@ class TextBitsControllerIntegrationTest(
 
     ///// createTextBit ////////////////////////////////////////////////////////////////////////////////////////////////
 
-    @Test fun `createTextBit() Creates text bit and embeddings for original text and translations`() {
-        val original = aTranslation(language = "en")
-        val itTranslation = aTranslation(language = "it")
-        val frTranslation = aTranslation(language = "fr")
-        val request = aTextBitCreationRequest(
-            originalText = original,
-            translations = listOf(itTranslation, frTranslation)
-        )
-        val originalEmbedding = anEmbedding()
-        val itEmbedding = anEmbedding()
-        val frEmbedding = anEmbedding()
+    @Test fun `createTextBit() Creates text bit and embeddings for translation`() {
+        val translation = aTranslation(language = "en")
+        val request = aTextBitCreationRequest(translation = translation)
+        val translationEmbedding = anEmbedding()
         val uuidList = listOf(
             uuid,
-            UUID.randomUUID(), // original translation
-            UUID.randomUUID(), // original embedding
-            UUID.randomUUID(), // it translation
-            UUID.randomUUID(), // it embedding
-            UUID.randomUUID(), // fr translation
-            UUID.randomUUID()  // fr embedding
+            UUID.randomUUID(), // translation
+            UUID.randomUUID()  // embedding
         )
         every { randomGenerator.uuid() } returnsMany uuidList
-        coEvery { embeddingsProvider.createEmbedding(original.text) } returns originalEmbedding.right()
-        coEvery { embeddingsProvider.createEmbedding(itTranslation.text) } returns itEmbedding.right()
-        coEvery { embeddingsProvider.createEmbedding(frTranslation.text) } returns frEmbedding.right()
+        coEvery { embeddingsProvider.createEmbedding(translation.text) } returns translationEmbedding.right()
 
         val result = given()
             .contentType(ContentType.JSON)
@@ -127,35 +113,26 @@ class TextBitsControllerIntegrationTest(
         textBit.topic shouldBe request.topic.name
         textBit.createdOn shouldBe now
         textBit.updatedOn.shouldBeNull()
-        val translations = translationsRepo.findTranslations(uuid)
-        translations.map { listOf(it.text, it.languageCode, it.original, it.embeddingStatus, it.createdOn) }
-            .shouldContainExactlyInAnyOrder(
-                listOf(itTranslation.text, itTranslation.language, false, EMBEDDED, now),
-                listOf(original.text, original.language, true, EMBEDDED, now),
-                listOf(frTranslation.text, frTranslation.language, false, EMBEDDED, now)
-            )
-        val embeddings = translations.mapNotNull { embeddingRepo.findEmbeddingByTranslationId(it.id) }
-        embeddings.map { it.vector.toList() to it.createdOn }.shouldContainExactlyInAnyOrder(
-            frEmbedding.toList() to now,
-            originalEmbedding.toList() to now,
-            itEmbedding.toList() to now
-        )
+
+        val translations = translationsRepo.findTranslations(uuid).shouldHaveSize(1)
+        val persisted = translations.first()
+        persisted.text shouldBe translation.text
+        persisted.languageCode shouldBe translation.language
+        persisted.embeddingStatus shouldBe EMBEDDED
+        persisted.createdOn shouldBe now
+        val persistedEmbedding = embeddingRepo.findEmbeddingByTranslationId(persisted.id).shouldNotBeNull()
+        persistedEmbedding.vector.toList() shouldBe translationEmbedding.toList()
     }
 
     @Test fun `createTextBit() Creates text bit and translations only, when inBatch is true`() {
-        val original = aTranslation(language = "en")
-        val itTranslation = aTranslation(language = "it")
-        val frTranslation = aTranslation(language = "fr")
+        val translation = aTranslation(language = "en")
         val request = aTextBitCreationRequest(
-            originalText = original,
-            translations = listOf(itTranslation, frTranslation),
+            translation = translation,
             inBatch = true
         )
         val uuidList = listOf(
             uuid,
-            UUID.randomUUID(), // original translation
-            UUID.randomUUID(), // it translation
-            UUID.randomUUID(), // fr translation
+            UUID.randomUUID()  // translation
         )
         every { randomGenerator.uuid() } returnsMany uuidList
 
@@ -171,39 +148,25 @@ class TextBitsControllerIntegrationTest(
 
         result.message shouldBe "Text bit successfully persisted!"
         testTextBitsRepo.findById(uuid).shouldNotBeNull()
-        val translations = translationsRepo.findTranslations(uuid)
-        translations.map { listOf(it.text, it.languageCode, it.original, it.embeddingStatus, it.createdOn) }
-            .shouldContainExactlyInAnyOrder(
-                listOf(itTranslation.text, itTranslation.language, false, UNEMBEDDED, now),
-                listOf(original.text, original.language, true, UNEMBEDDED, now),
-                listOf(frTranslation.text, frTranslation.language, false, UNEMBEDDED, now)
-            )
-        val embeddings = translations.mapNotNull { embeddingRepo.findEmbeddingByTranslationId(it.id) }
-        embeddings.shouldBeEmpty()
+
+        val translations = translationsRepo.findTranslations(uuid).shouldHaveSize(1)
+        val persisted = translations.first()
+        persisted.text shouldBe translation.text
+        persisted.languageCode shouldBe translation.language
+        persisted.embeddingStatus shouldBe UNEMBEDDED
+        persisted.createdOn shouldBe now
+        embeddingRepo.findEmbeddingByTranslationId(persisted.id).shouldBeNull()
     }
 
-    //TODO add simple test when inBatch is missing
-
     @Test fun `createTextBit() Creates text bit and translations only, when embedding creation fails`() {
-        val original = aTranslation(language = "en")
-        val itTranslation = aTranslation(language = "it")
-        val frTranslation = aTranslation(language = "fr")
-        val request = aTextBitCreationRequest(
-            originalText = original,
-            translations = listOf(itTranslation, frTranslation)
-        )
-        val itEmbedding = anEmbedding()
+        val translation = aTranslation(language = "en")
+        val request = aTextBitCreationRequest(translation = translation, inBatch = false)
         val uuidList = listOf(
             uuid,
-            UUID.randomUUID(), // original translation
-            UUID.randomUUID(), // it translation
-            UUID.randomUUID(), // it embedding
-            UUID.randomUUID()  // fr translation
+            UUID.randomUUID() // translation
         )
         every { randomGenerator.uuid() } returnsMany uuidList
-        coEvery { embeddingsProvider.createEmbedding(original.text) } returns EmbeddingCreationFailure.left()
-        coEvery { embeddingsProvider.createEmbedding(itTranslation.text) } returns itEmbedding.right()
-        coEvery { embeddingsProvider.createEmbedding(frTranslation.text) } returns EmbeddingCreationFailure.left()
+        coEvery { embeddingsProvider.createEmbedding(translation.text) } returns EmbeddingCreationFailure.left()
 
         val result = given()
             .contentType(ContentType.JSON)
@@ -216,19 +179,15 @@ class TextBitsControllerIntegrationTest(
             .`as`(MessageResponse::class.java)
 
         result.message shouldBe
-                "Text bit successfully persisted! Failed embeddings creation for languages [en, fr]"
+                "Text bit successfully persisted! Failed embeddings creation."
         testTextBitsRepo.findById(uuid).shouldNotBeNull()
-        val translations = translationsRepo.findTranslations(uuid)
-        translations.map { listOf(it.text, it.languageCode, it.original, it.embeddingStatus, it.createdOn) }
-            .shouldContainExactlyInAnyOrder(
-                listOf(itTranslation.text, itTranslation.language, false, EMBEDDED, now),
-                listOf(original.text, original.language, true, UNEMBEDDED, now),
-                listOf(frTranslation.text, frTranslation.language, false, UNEMBEDDED, now)
-            )
-        val embeddings = translations.mapNotNull { embeddingRepo.findEmbeddingByTranslationId(it.id) }
-        embeddings.map { it.vector.toList() to it.createdOn }.shouldContainExactlyInAnyOrder(
-            itEmbedding.toList() to now
-        )
+        val translations = translationsRepo.findTranslations(uuid).shouldHaveSize(1)
+        val persisted = translations.first()
+        persisted.text shouldBe translation.text
+        persisted.languageCode shouldBe translation.language
+        persisted.embeddingStatus shouldBe UNEMBEDDED
+        persisted.createdOn shouldBe now
+        embeddingRepo.findEmbeddingByTranslationId(persisted.id).shouldBeNull()
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -257,9 +216,9 @@ class TextBitsControllerIntegrationTest(
         val uuid: UUID = UUID.randomUUID()
         val creationTime = now.minusSeconds(50_000)
         textBitsRepo.insert(uuid, Game.MAUSRITTER, topic, creationTime)
-        val original = aTranslationEntity(textBitId = uuid, original = true, languageCode = "en")
-        val itTranslation = aTranslationEntity(textBitId = uuid, original = false, languageCode = "it")
-        val frTranslation = aTranslationEntity(textBitId = uuid, original = false, languageCode = "fr")
+        val original = aTranslationEntity(textBitId = uuid, languageCode = "en")
+        val itTranslation = aTranslationEntity(textBitId = uuid, languageCode = "it")
+        val frTranslation = aTranslationEntity(textBitId = uuid, languageCode = "fr")
         translationsRepo.insert(original)
         translationsRepo.insert(itTranslation)
         translationsRepo.insert(frTranslation)
@@ -327,7 +286,6 @@ class TextBitsControllerIntegrationTest(
                 translationId,
                 uuid,
                 request.language,
-                true,
                 originalText,
                 EMBEDDED,
                 creationTime))
@@ -365,7 +323,6 @@ class TextBitsControllerIntegrationTest(
                 translationId,
                 uuid,
                 request.language,
-                true,
                 originalText,
                 EMBEDDED,
                 creationTime))

@@ -69,33 +69,18 @@ class TextBitsControllerUnitTest(
     }
 
     @Test fun `createTextBit() Creates text bit and translations only, when fails to persist embedding`() {
-        val original = aTranslation(language = "en")
-        val itTranslation = aTranslation(language = "it")
-        val frTranslation = aTranslation(language = "fr")
+        val translation = aTranslation(language = "en")
         val request = aTextBitCreationRequest(
             topic = topic, game = game,
-            originalText = original,
-            translations = listOf(itTranslation, frTranslation)
+            translation = translation
         )
-        val originalEmbedding = anEmbedding()
-        val itEmbedding = anEmbedding()
-        val frEmbedding = anEmbedding()
-        val originalId = UUID.randomUUID()
-        val itTranslationId = UUID.randomUUID()
-        val frTranslationId = UUID.randomUUID()
+        val translationEmbedding = anEmbedding()
+        val translationId = UUID.randomUUID()
         every { textBitsDao.persist(topic, game) } returns uuid
-        every { translationsDao.persist(uuid, original, true) } returns originalId
-        every { translationsDao.persist(uuid, itTranslation, false) } returns itTranslationId
-        every { translationsDao.persist(uuid, frTranslation, false) } returns frTranslationId
-        coEvery { embeddingsProvider.createEmbedding(original.text) } returns originalEmbedding.right()
-        coEvery { embeddingsProvider.createEmbedding(itTranslation.text) } returns itEmbedding.right()
-        coEvery { embeddingsProvider.createEmbedding(frTranslation.text) } returns frEmbedding.right()
-        every { embeddingsDao.persist(originalId, originalEmbedding) } returns
+        every { translationsDao.persist(uuid, translation) } returns translationId
+        coEvery { embeddingsProvider.createEmbedding(translation.text) } returns translationEmbedding.right()
+        every { embeddingsDao.persist(translationId, translationEmbedding) } returns
                 PersistenceFailure("embedding persistence failure").left()
-        every { embeddingsDao.persist(itTranslationId, itEmbedding) } returns UUID.randomUUID().right()
-        every { embeddingsDao.persist(frTranslationId, frEmbedding) } returns
-                PersistenceFailure("embedding persistence failure").left()
-        every { translationsDao.setEmbeddingStatus(itTranslationId, EMBEDDED) } returns Unit
 
         val responseBody: String = mockMvc.perform(
             post("/text-bits")
@@ -106,9 +91,8 @@ class TextBitsControllerUnitTest(
 
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
         response.message shouldBe
-                "Text bit successfully persisted! Failed embeddings creation for languages [en, fr]"
-        verify(exactly = 0) { translationsDao.setEmbeddingStatus(originalId, EMBEDDED) }
-        verify(exactly = 0) { translationsDao.setEmbeddingStatus(frTranslationId, EMBEDDED) }
+                "Text bit successfully persisted! Failed embeddings creation."
+        verify(exactly = 0) { translationsDao.setEmbeddingStatus(translationId, EMBEDDED) }
     }
 
     // TODO what happen when setEmbeddingStatus fails? (Should rollback embedding creation) or (just remove that column)
@@ -119,7 +103,7 @@ class TextBitsControllerUnitTest(
             val responseBody: String = mockMvc.perform(
                 post("/text-bits")
                     .contentType("application/json")
-                    .content(aTextBitCreationRequest(originalText = aTranslation(text = it)).toJsonString()))
+                    .content(aTextBitCreationRequest(translation = aTranslation(text = it)).toJsonString()))
                 .andExpect(status().isBadRequest)
                 .andReturn().response.contentAsString
 
@@ -130,128 +114,6 @@ class TextBitsControllerUnitTest(
             val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
             response.message shouldBe "Text must not be empty!"
         }
-    }
-
-    @Test fun `createTextBit() ignores translations with empty text`() {
-        val request = aTextBitCreationRequest(
-            inBatch = true,
-            originalText = aTranslation(language = "en"),
-            translations = listOf(
-                aTranslation(text = "", language = "es"),
-                aTranslation(text = " ", language = "it"),
-                aTranslation(text = "  ", language = "fr"))
-        )
-        val textBit = request.toTextBit()
-        asserter.givenTextBitCreation(textBit)
-
-        val responseBody: String = mockMvc.perform(
-            post("/text-bits")
-                .contentType("application/json")
-                .content(request.toJsonString()))
-            .andExpect(status().isOk)
-            .andReturn().response.contentAsString
-
-        asserter.verifyTranslationPersistence(textBit.original)
-        confirmVerified(translationsDao) // no more interactions
-        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
-        asserter.verifyNoEmbeddingsPersisted()
-        val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-        response.message shouldBe "Text bit successfully persisted!"
-    }
-
-    @Test fun `createTextBit() Returns 400 when there are multiple translations in the same language`() {
-        val responseBody: String = mockMvc.perform(
-            post("/text-bits")
-                .contentType("application/json")
-                .content(aTextBitCreationRequest(
-                    originalText = aTranslation(language = "en"),
-                    translations = listOf(aTranslation(language = "it"), aTranslation(language = "it"))
-                ).toJsonString()))
-            .andExpect(status().isBadRequest)
-            .andReturn().response.contentAsString
-
-        verify(exactly = 0) { textBitsDao.persist(any(), any()) }
-        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
-        verify(exactly = 0) { embeddingsDao.persist(any(), any()) }
-        verify(exactly = 0) { translationsDao.setEmbeddingStatus(any(), any()) }
-        val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-        response.message shouldBe "Multiple translations in the same language are not allowed"
-    }
-
-    @Test fun `createTextBit() Returns 400 when there are translations in the same language as the original one`() {
-        val request = aTextBitCreationRequest(
-            inBatch = true,
-            originalText = aTranslation(language = "en"),
-            translations = listOf(
-                aTranslation(language = "en"),
-                aTranslation(language = "it"))
-        )
-
-        val responseBody: String = mockMvc.perform(
-            post("/text-bits")
-                .contentType("application/json")
-                .content(request.toJsonString()))
-            .andExpect(status().isBadRequest)
-            .andReturn().response.contentAsString
-
-        asserter.verifyNothingPersisted()
-        val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-        response.message shouldBe "Multiple translations in the same language are not allowed"
-    }
-
-    @Test fun `createTextBit() ignores translations with same language and text as original`() {
-        val text = aRandomUniqueString()
-        val itTranslation = aTranslation(language = "it")
-        val request = aTextBitCreationRequest(
-            inBatch = true,
-            originalText = aTranslation(text = text, language = "en"),
-            translations = listOf(
-                aTranslation(text = text, language = "en"),
-                itTranslation)
-        )
-        val textBit = request.toTextBit()
-        asserter.givenTextBitCreation(textBit)
-
-        val responseBody: String = mockMvc.perform(
-            post("/text-bits")
-                .contentType("application/json")
-                .content(request.toJsonString()))
-            .andExpect(status().isOk)
-            .andReturn().response.contentAsString
-
-        asserter.verifyTranslationPersistence(textBit.original)
-        asserter.verifyTranslationPersistence(itTranslation)
-        confirmVerified(translationsDao) // no more interactions
-        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
-        asserter.verifyNoEmbeddingsPersisted()
-        val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-        response.message shouldBe "Text bit successfully persisted!"
-    }
-
-    @Test fun `createTextBit() ignores translations with same language and text`() {
-        val itTranslation = aTranslation(language = "it")
-        val request = aTextBitCreationRequest(
-            inBatch = true,
-            originalText = aTranslation(language = "en"),
-            translations = listOf(itTranslation, itTranslation)
-        )
-        val textBit = request.toTextBit()
-        asserter.givenTextBitCreation(textBit)
-
-        val responseBody: String = mockMvc.perform(
-            post("/text-bits")
-                .contentType("application/json")
-                .content(request.toJsonString()))
-            .andExpect(status().isOk)
-            .andReturn().response.contentAsString
-
-        asserter.verifyTranslationPersistence(textBit.original)
-        asserter.verifyTranslationPersistence(itTranslation)
-        confirmVerified(translationsDao) // no more interactions
-        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
-        asserter.verifyNoEmbeddingsPersisted()
-        val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-        response.message shouldBe "Text bit successfully persisted!"
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
