@@ -3,6 +3,7 @@ package org.agrfesta.btm.api.controllers
 import arrow.core.Either.Left
 import arrow.core.Either.Right
 import kotlinx.coroutines.runBlocking
+import org.agrfesta.btm.api.model.Embedding
 import org.agrfesta.btm.api.model.EmbeddingCreationFailure
 import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.model.PersistenceFailure
@@ -25,7 +26,12 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.util.*
+import kotlin.math.sqrt
 
+/**
+ * REST controller for managing Text Bits (small text units), their translations,
+ * and similarity-based search.
+ */
 @RestController
 @RequestMapping("/text-bits")
 class TextBitsController(
@@ -35,29 +41,13 @@ class TextBitsController(
     private val embedder: Embedder = {text -> runBlocking { embeddingsProvider.createEmbedding(text) }}
 
     /**
-     * POST /bits
+     * POST /text-bits
      *
-     * Creates a new Text's bit for a given game.
+     * Creates a new text bit with a translation for a given game and topic.
      *
-     * Request Body (application/json):
-     * {
-     *   "game": "string",      // required - identifier of the game
-     *   "text": "string",      // required - the text's bit content (must not be blank)
-     *   "inBatch": false       // optional - if true, skips embedding
-     * }
-     *
-     * Responses:
-     * - 200 OK:
-     *   - Text's bit successfully persisted
-     *   - If not in batch mode, attempts embedding (can return warning if it fails)
-     * - 400 Bad Request:
-     *   - Returned when 'text' is blank
-     * - 500 Internal Server Error:
-     *   - Returned if text's bit persistence fails
-     *
-     * Notes:
-     * - Embedding is skipped for batch operations
-     * - Embedding failure doesn't stop text's bit creation
+     * @param request the [TextBitCreationRequest] containing game, topic, translation, and batch flag.
+     * @return 200 OK if successful (with optional embedding warning), 400 if input is invalid,
+     *         or 500 if persistence fails.
      */
     @PostMapping
     fun createTextBit(@RequestBody request: TextBitCreationRequest): ResponseEntity<Any> {
@@ -87,33 +77,14 @@ class TextBitsController(
     }
 
     /**
-     * PUT /bits/{id}
+     * PATCH /text-bits/{id}
      *
-     * Replaces the text of an existing Text's bit.
+     * Replaces an existing translation of a Text Bit with new text content.
      *
-     * Path Variable:
-     * - id (UUID) - required - identifier of the text bit to be replaced
-     *
-     * Request Body (application/json):
-     * {
-     *   "text": "string",      // required - new content of the text's bit (must not be blank)
-     *   "inBatch": false       // optional - if true, skips embedding
-     * }
-     *
-     * Responses:
-     * - 200 OK:
-     *   - Text's bit successfully replaced
-     *   - If not in batch mode, attempts embedding (can return warning if it fails)
-     * - 400 Bad Request:
-     *   - Returned when 'text' is blank
-     * - 404 Not Found:
-     *   - Returned when text's bit with given ID doesn't exist
-     * - 500 Internal Server Error:
-     *   - Returned if lookup or persistence fails
-     *
-     * Notes:
-     * - Embedding is skipped for batch operations
-     * - Embedding failure doesn't stop text's bit replacement
+     * @param id the UUID of the text bit to update
+     * @param request the [TextBitTranslationPatchRequest] containing updated text, language, and batch flag
+     * @return 200 OK if successful, possibly with embedding failure warning,
+     *         400 if input is invalid, 404 if bit not found, or 500 on error
      */
     @PatchMapping("/{id}")
     fun update(@PathVariable id: UUID, @RequestBody request: TextBitTranslationPatchRequest): ResponseEntity<Any> {
@@ -142,6 +113,44 @@ class TextBitsController(
             }
             is Right -> ok().body(MessageResponse("Text bit $id successfully patched!"))
         }
+    }
+
+    /**
+     * POST /text-bits/similarity-search
+     *
+     * Performs similarity search based on the embedding of the provided text.
+     *
+     * @param request the [TextBitSearchBySimilarityRequest] including game, topic, text, and language.
+     * @return 200 OK with list of similar Text Bits, or appropriate error responses.
+     */
+    @PostMapping("/similarity-search")
+    fun similaritySearch(@RequestBody request: TextBitSearchBySimilarityRequest): ResponseEntity<Any> {
+        if (request.text.isBlank()) {
+            return badRequest().body(MessageResponse("Text must not be blank!"))
+        }
+        if (request.language.isBlank() || request.language.length != 2) {
+            return badRequest().body(MessageResponse("Language must not be blank and two charters length!"))
+        }
+        val game = try {
+            Game.valueOf(request.game)
+        } catch (e: IllegalArgumentException) {
+            return badRequest().body(MessageResponse("Game is not valid!"))
+        }
+        val topic = try {
+            Topic.valueOf(request.topic)
+        } catch (e: IllegalArgumentException) {
+            return badRequest().body(MessageResponse("Topic is not valid!"))
+        }
+       return when(val result = textBitsService
+           .searchBySimilarity(request.text, game, topic, request.language, embedder)) {
+                is Left -> when(result.value) {
+                    EmbeddingCreationFailure -> internalServerError()
+                        .body(MessageResponse("Unable to create target embedding!"))
+                    is PersistenceFailure -> internalServerError()
+                        .body(MessageResponse("Unable to fetch embeddings!"))
+                }
+                is Right -> ok().body(result.value)
+            }
     }
 
     private fun Translation.persist(
@@ -179,3 +188,15 @@ data class TextBitTranslationPatchRequest(
     val language: String,
     val inBatch: Boolean = false
 )
+
+data class TextBitSearchBySimilarityRequest(
+    val game: String,
+    val topic: String,
+    val text: String,
+    val language: String
+)
+
+fun Embedding.normalize(): Embedding {
+    val norm = sqrt(map { it * it }.sum())
+    return if (norm == 0f) this else map { it / norm }.toFloatArray()
+}

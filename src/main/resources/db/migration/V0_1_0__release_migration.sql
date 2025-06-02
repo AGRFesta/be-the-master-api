@@ -55,8 +55,12 @@ CREATE TABLE btm.embeddings (
     created_on TIMESTAMP NOT NULL                         -- Creation timestamp
 );
 
--- Index: vector similarity search optimization
-CREATE INDEX ON btm.embeddings USING ivfflat (vector) WITH (lists = 100);
+-- An HNSW index constructs a multilayer graph where a path between any pair of vertices can be traversed in a small
+-- number of steps. HNSW has better query performance than IVFFlat (in terms of speed-recall tradeoff), but has slower
+-- build times and uses more memory.
+-- Also, an HNSW index can be created without any data in the table since there isn’t a training step required,
+-- unlike in IVFFlat.
+CREATE INDEX ON btm.embeddings USING hnsw (vector vector_cosine_ops);
 
 -- Table: party
 -- Represents a group of characters in a game session
