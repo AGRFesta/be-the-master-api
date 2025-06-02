@@ -6,6 +6,7 @@ import arrow.core.right
 import org.agrfesta.btm.api.model.Embedding
 import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.model.PersistenceFailure
+import org.agrfesta.btm.api.model.Topic
 import org.agrfesta.btm.api.persistence.EmbeddingsDao
 import org.agrfesta.btm.api.persistence.jdbc.repositories.EmbeddingRepository
 import org.agrfesta.btm.api.services.utils.LoggerDelegate
@@ -41,9 +42,10 @@ class EmbeddingsDaoJdbcImpl(
         }
     }
 
-    override fun nearestTextBits(game: Game, target: Embedding): Either<PersistenceFailure, List<String>> {
+    @Deprecated("use searchBySimilarity instead")
+    override fun nearestTextBits(game: Game, embedding: Embedding): Either<PersistenceFailure, List<String>> {
         return try {
-            TODO("must be re-implemented")
+            TODO("not implemented")
 //            val result = embeddingRepo.getNearestEmbeddings(target, game.name)
 //            result.map { it.text }.toList().right()
         } catch (e: Exception) {
@@ -51,6 +53,20 @@ class EmbeddingsDaoJdbcImpl(
             PersistenceFailure("Text embedding persistence failure!", e).left()
         }
     }
+
+    override fun searchBySimilarity(
+        target: Embedding,
+        game: Game,
+        topic: Topic,
+        language: String
+    ): List<Pair<String, Double>> = embeddingRepo.getNearestEmbeddings(
+            target = target,
+            game = game.name,
+            topic = topic.name,
+            languageCode = language
+        )
+            .filter { it.second <= 0.6 }
+
 
     override fun deleteByTranslationId(uuid: UUID): Either<PersistenceFailure, Unit> {
         return try {

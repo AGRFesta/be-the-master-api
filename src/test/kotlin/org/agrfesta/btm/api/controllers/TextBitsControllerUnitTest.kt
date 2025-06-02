@@ -7,9 +7,9 @@ import com.ninjasquad.springmockk.MockkBean
 import io.kotest.matchers.shouldBe
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.confirmVerified
 import io.mockk.every
 import io.mockk.verify
+import org.agrfesta.btm.api.model.EmbeddingCreationFailure
 import org.agrfesta.btm.api.model.EmbeddingStatus.EMBEDDED
 import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.model.PersistenceFailure
@@ -175,6 +175,115 @@ class TextBitsControllerUnitTest(
         verify(exactly = 0) { translationsDao.setEmbeddingStatus(any(), any()) }
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
         response.message shouldBe "Unable to replace text bit $uuid!"
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    ///// similaritySearch /////////////////////////////////////////////////////////////////////////////////////////////
+
+    @TestFactory
+    fun `similaritySearch() returns 400 when text is blank`() = listOf("", " ", "  ", "    ").map {
+        dynamicTest(" -> '$it'") {
+            val request = aTextBitSearchBySimilarityRequest(text = it)
+            val responseBody: String = mockMvc.perform(
+                post("/text-bits/similarity-search")
+                    .contentType("application/json")
+                    .content(request.toJsonString()))
+                .andExpect(status().isBadRequest)
+                .andReturn().response.contentAsString
+
+            verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any()) }
+            val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+            response.message shouldBe "Text must not be blank!"
+        }
+    }
+
+    @TestFactory
+    fun `similaritySearch() returns 400 when language is not valid`() = listOf("", " ", "  ", "    ", "i", "ita").map {
+        dynamicTest(" -> '$it'") {
+            val request = aTextBitSearchBySimilarityRequest(language = it)
+            val responseBody: String = mockMvc.perform(
+                post("/text-bits/similarity-search")
+                    .contentType("application/json")
+                    .content(request.toJsonString()))
+                .andExpect(status().isBadRequest)
+                .andReturn().response.contentAsString
+
+            verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any()) }
+            val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+            response.message shouldBe "Language must not be blank and two charters length!"
+        }
+    }
+
+    @TestFactory
+    fun `similaritySearch() returns 400 when Game is not valid`() =
+        listOf("", " ", "  ", "    ", aRandomUniqueString()).map {
+            dynamicTest(" -> '$it'") {
+                val requestJson = aTextBitSearchBySimilarityRequestJson(game = it)
+                val responseBody: String = mockMvc.perform(
+                    post("/text-bits/similarity-search")
+                        .contentType("application/json")
+                        .content(requestJson))
+                    .andExpect(status().isBadRequest)
+                    .andReturn().response.contentAsString
+
+                verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any()) }
+                val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+                response.message shouldBe "Game is not valid!"
+            }
+        }
+
+    @TestFactory
+    fun `similaritySearch() returns 400 when Topic is not valid`() =
+        listOf("", " ", "  ", "    ", aRandomUniqueString()).map {
+            dynamicTest(" -> '$it'") {
+                val requestJson = aTextBitSearchBySimilarityRequestJson(topic = it)
+                val responseBody: String = mockMvc.perform(
+                    post("/text-bits/similarity-search")
+                        .contentType("application/json")
+                        .content(requestJson))
+                    .andExpect(status().isBadRequest)
+                    .andReturn().response.contentAsString
+
+                verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any()) }
+                val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+                response.message shouldBe "Topic is not valid!"
+            }
+        }
+
+    @Test fun `similaritySearch() Returns 500 when fails to create request text embedding`() {
+        val request = aTextBitSearchBySimilarityRequest()
+        coEvery { embeddingsProvider.createEmbedding(request.text) } returns EmbeddingCreationFailure.left()
+
+        val responseBody: String = mockMvc.perform(
+            post("/text-bits/similarity-search")
+                .contentType("application/json")
+                .content(request.toJsonString()))
+            .andExpect(status().isInternalServerError)
+            .andReturn().response.contentAsString
+
+        val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+        response.message shouldBe "Unable to create target embedding!"
+    }
+
+    @Test fun `similaritySearch() Returns 500 when fails to fetch embeddings`() {
+        val game = aGame()
+        val topic = aTopic()
+        val failure = Exception("embeddings fetch failure")
+        val request = aTextBitSearchBySimilarityRequest(game = game, topic = topic)
+        val targetEmbedding = anEmbedding()
+        coEvery { embeddingsProvider.createEmbedding(request.text) } returns targetEmbedding.right()
+        every { embeddingsDao.searchBySimilarity(targetEmbedding, game, topic, request.language) } throws failure
+
+        val responseBody: String = mockMvc.perform(
+            post("/text-bits/similarity-search")
+                .contentType("application/json")
+                .content(request.toJsonString()))
+            .andExpect(status().isInternalServerError)
+            .andReturn().response.contentAsString
+
+        val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+        response.message shouldBe "Unable to fetch embeddings!"
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

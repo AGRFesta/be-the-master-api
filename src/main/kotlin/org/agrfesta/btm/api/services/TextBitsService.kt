@@ -78,4 +78,18 @@ class TextBitsService(
         } ?: Unit.right()
     }
 
+    fun searchBySimilarity(
+        text: String,
+        game: Game,
+        topic: Topic,
+        language: String,
+        embedder: Embedder
+    ): Either<BtmFlowFailure, List<Pair<String, Double>>> = embedder(text).flatMap {
+            try {
+                embeddingsDao.searchBySimilarity(it, game, topic, language).right()
+            } catch (e: Exception) {
+                PersistenceFailure("unable to fetch embeddings", e).left()
+            }
+        }
+
 }

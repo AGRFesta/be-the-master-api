@@ -3,6 +3,8 @@ package org.agrfesta.btm.api.controllers
 import arrow.core.left
 import arrow.core.right
 import com.ninjasquad.springmockk.MockkBean
+import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -11,7 +13,9 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.restassured.RestAssured
 import io.restassured.RestAssured.given
+import io.restassured.common.mapper.TypeRef
 import io.restassured.http.ContentType
+import org.agrfesta.btm.api.model.Embedding
 import org.agrfesta.btm.api.model.EmbeddingCreationFailure
 import org.agrfesta.btm.api.model.EmbeddingStatus.EMBEDDED
 import org.agrfesta.btm.api.model.EmbeddingStatus.UNEMBEDDED
@@ -27,8 +31,10 @@ import org.agrfesta.btm.api.services.EmbeddingsProvider
 import org.agrfesta.btm.api.services.utils.RandomGenerator
 import org.agrfesta.btm.api.services.utils.TimeService
 import org.agrfesta.btm.api.services.utils.toNoNanoSec
+import org.agrfesta.test.mothers.aNormalizedEmbedding
 import org.agrfesta.test.mothers.aRandomUniqueString
 import org.agrfesta.test.mothers.anEmbedding
+import org.agrfesta.test.mothers.generateVectorWithDistance
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.Test
@@ -313,7 +319,7 @@ class TextBitsControllerIntegrationTest(
 
     @Test fun `update() Replace a translation removing old embedding when new embedding creation fails`() {
         val originalText = aRandomUniqueString()
-        val embedding = anEmbedding()
+        val embedding = anEmbedding().normalize()
         val request = aTextBitTranslationsPatchRequest(language = "it", inBatch = false)
         val creationTime = now.minusSeconds(50_000)
         textBitsRepo.insert(uuid, Game.MAUSRITTER, topic, creationTime)
@@ -348,5 +354,173 @@ class TextBitsControllerIntegrationTest(
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    ///// similaritySearch /////////////////////////////////////////////////////////////////////////////////////////////
+
+    @Test fun `similaritySearch() Returns empty list when there are no text bits`() {
+        val request = aTextBitSearchBySimilarityRequest()
+        val targetEmbedding = anEmbedding()
+        coEvery { embeddingsProvider.createEmbedding(request.text) } returns targetEmbedding.right()
+
+        val result = given()
+            .contentType(ContentType.JSON)
+            .body(request.toJsonString())
+            .`when`()
+            .post("/text-bits/similarity-search")
+            .then()
+            .statusCode(200)
+            .extract()
+            .`as`(object : TypeRef<List<Pair<String, Double>>>() {})
+
+        result.shouldBeEmpty()
+    }
+
+    @Test fun `similaritySearch() Returns similar text bits only, sorted by descending similarity`() {
+        val game = aGame()
+        val topic = aTopic()
+        val language = aLanguage()
+        val request = aTextBitSearchBySimilarityRequest(game = game, language = language, topic = topic)
+        val targetEmbedding = aNormalizedEmbedding()
+        val embeddingA = generateVectorWithDistance(targetEmbedding, 0.5)
+        val embeddingB = generateVectorWithDistance(targetEmbedding, 2.0)
+        val embeddingC = generateVectorWithDistance(targetEmbedding, 0.01)
+        val embeddingD = generateVectorWithDistance(targetEmbedding, 1.0)
+        val embeddingE = generateVectorWithDistance(targetEmbedding, 0.59)
+        givenTextBitEmbedding(game = game, language = language, topic = topic, text = "text A", embedding = embeddingA)
+        givenTextBitEmbedding(game = game, language = language, topic = topic, text = "text B", embedding = embeddingB)
+        givenTextBitEmbedding(game = game, language = language, topic = topic, text = "text C", embedding = embeddingC)
+        givenTextBitEmbedding(game = game, language = language, topic = topic, text = "text D", embedding = embeddingD)
+        givenTextBitEmbedding(game = game, language = language, topic = topic, text = "text E", embedding = embeddingE)
+        coEvery { embeddingsProvider.createEmbedding(request.text) } returns targetEmbedding.right()
+
+        val result = given()
+            .contentType(ContentType.JSON)
+            .body(request.toJsonString())
+            .`when`()
+            .post("/text-bits/similarity-search")
+            .then()
+            .statusCode(200)
+            .extract()
+            .`as`(object : TypeRef<List<Pair<String, Double>>>() {})
+
+        result.map { it.first }.shouldContainExactly("text C", "text A", "text E")
+    }
+
+    @Test fun `similaritySearch() Do not returns same topic and language but different game texts`() {
+        val game = aGame()
+        val topic = aTopic()
+        val language = aLanguage()
+        val request = aTextBitSearchBySimilarityRequest(game = game, language = language, topic = topic)
+        val targetEmbedding = aNormalizedEmbedding()
+        val embA = generateVectorWithDistance(targetEmbedding, 0.5)
+        val embB = generateVectorWithDistance(targetEmbedding, 0.35)
+        val embC = generateVectorWithDistance(targetEmbedding, 0.01)
+        val embD = generateVectorWithDistance(targetEmbedding, 0.3)
+        val embE = generateVectorWithDistance(targetEmbedding, 0.59)
+        val anotherGame = (Game.entries - game).random()
+        givenTextBitEmbedding(game = game, language = language, topic = topic, text = "text A", embedding = embA)
+        givenTextBitEmbedding(game = anotherGame, language = language, topic = topic, text = "text B", embedding = embB)
+        givenTextBitEmbedding(game = anotherGame, language = language, topic = topic, text = "text C", embedding = embC)
+        givenTextBitEmbedding(game = game, language = language, topic = topic, text = "text D", embedding = embD)
+        givenTextBitEmbedding(game = game, language = language, topic = topic, text = "text E", embedding = embE)
+        coEvery { embeddingsProvider.createEmbedding(request.text) } returns targetEmbedding.right()
+
+        val result = given()
+            .contentType(ContentType.JSON)
+            .body(request.toJsonString())
+            .`when`()
+            .post("/text-bits/similarity-search")
+            .then()
+            .statusCode(200)
+            .extract()
+            .`as`(object : TypeRef<List<Pair<String, Double>>>() {})
+
+        result.map { it.first }.shouldContainExactly("text D", "text A", "text E")
+    }
+
+    @Test fun `similaritySearch() Do not returns same game and language but different topic texts`() {
+        val game = aGame()
+        val topic = aTopic()
+        val language = aLanguage()
+        val request = aTextBitSearchBySimilarityRequest(game = game, language = language, topic = topic)
+        val targetEmbedding = aNormalizedEmbedding()
+        val embA = generateVectorWithDistance(targetEmbedding, 0.5)
+        val embB = generateVectorWithDistance(targetEmbedding, 0.35)
+        val embC = generateVectorWithDistance(targetEmbedding, 0.01)
+        val embD = generateVectorWithDistance(targetEmbedding, 0.3)
+        val embE = generateVectorWithDistance(targetEmbedding, 0.59)
+        val anotherTopic = (Topic.entries - topic).random()
+        givenTextBitEmbedding(topic = topic, language = language, game = game, text = "text A", embedding = embA)
+        givenTextBitEmbedding(topic = anotherTopic, language = language, game = game, text = "text B", embedding = embB)
+        givenTextBitEmbedding(topic = anotherTopic, language = language, game = game, text = "text C", embedding = embC)
+        givenTextBitEmbedding(topic = topic, language = language, game = game, text = "text D", embedding = embD)
+        givenTextBitEmbedding(topic = topic, language = language, game = game, text = "text E", embedding = embE)
+        coEvery { embeddingsProvider.createEmbedding(request.text) } returns targetEmbedding.right()
+
+        val result = given()
+            .contentType(ContentType.JSON)
+            .body(request.toJsonString())
+            .`when`()
+            .post("/text-bits/similarity-search")
+            .then()
+            .statusCode(200)
+            .extract()
+            .`as`(object : TypeRef<List<Pair<String, Double>>>() {})
+
+        result.map { it.first }.shouldContainExactly("text D", "text A", "text E")
+    }
+
+    @Test fun `similaritySearch() Do not returns same game and topic but different language texts`() {
+        val game = aGame()
+        val topic = aTopic()
+        val language = aLanguage()
+        val request = aTextBitSearchBySimilarityRequest(game = game, topic = topic, language = language)
+        val targetEmbedding = aNormalizedEmbedding()
+        val embeddingA = generateVectorWithDistance(targetEmbedding, 0.5)
+        val embeddingB = generateVectorWithDistance(targetEmbedding, 0.35)
+        val embeddingC = generateVectorWithDistance(targetEmbedding, 0.01)
+        val embeddingD = generateVectorWithDistance(targetEmbedding, 0.3)
+        val embeddingE = generateVectorWithDistance(targetEmbedding, 0.59)
+        val another = language.reversed()
+        givenTextBitEmbedding(language = language, topic = topic, game = game, text = "text A", embedding = embeddingA)
+        givenTextBitEmbedding(language = another, topic = topic, game = game, text = "text B", embedding = embeddingB)
+        givenTextBitEmbedding(language = another, topic = topic, game = game, text = "text C", embedding = embeddingC)
+        givenTextBitEmbedding(language = language, topic = topic, game = game, text = "text D", embedding = embeddingD)
+        givenTextBitEmbedding(language = language, topic = topic, game = game, text = "text E", embedding = embeddingE)
+        coEvery { embeddingsProvider.createEmbedding(request.text) } returns targetEmbedding.right()
+
+        val result = given()
+            .contentType(ContentType.JSON)
+            .body(request.toJsonString())
+            .`when`()
+            .post("/text-bits/similarity-search")
+            .then()
+            .statusCode(200)
+            .extract()
+            .`as`(object : TypeRef<List<Pair<String, Double>>>() {})
+
+        result.map { it.first }.shouldContainExactly("text D", "text A", "text E")
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    private fun givenTextBitEmbedding(
+        game: Game = aGame(),
+        topic: Topic = aTopic(),
+        language: String = aLanguage(),
+        text: String,
+        embedding: Embedding
+    ): UUID {
+        val textBit = aTextBit(game = game, topic = topic)
+        textBitsRepo.insert(textBit.id, game, topic, createdOn = now)
+        val translation = aTranslationEntity(
+            textBitId = textBit.id,
+            embeddingStatus = EMBEDDED,
+            text = text,
+            languageCode = language)
+        translationsRepo.insert(translation)
+        embeddingRepo.insertEmbedding(UUID.randomUUID(), translation.id, embedding, now)
+        return translation.id
+    }
 
 }
