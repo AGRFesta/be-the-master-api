@@ -4,7 +4,6 @@ import io.kotest.matchers.maps.shouldContainExactly
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldStartWith
-import io.restassured.RestAssured
 import io.restassured.RestAssured.given
 import io.restassured.http.ContentType
 import org.agrfesta.btm.api.model.Game
@@ -12,42 +11,30 @@ import org.agrfesta.btm.api.persistence.jdbc.repositories.GlossariesRepository
 import org.agrfesta.btm.api.services.utils.toNoNanoSec
 import org.agrfesta.test.mothers.aGlossaryEntry
 import org.agrfesta.test.mothers.aRandomUniqueString
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection
-import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
-import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
-import org.testcontainers.junit.jupiter.Testcontainers
-import org.testcontainers.utility.DockerImageName
 import java.time.Instant
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Testcontainers
-@ActiveProfiles("test")
 class PromptsControllerIntegrationTest(
     @Value("\${translation.prompt.introduction}") private val transPromptIntro: String,
     @Value("\${translation.prompt.original.text.introduction}") private val originalTextIntro: String,
     @Value("\${translation.prompt.suggested.glossary.introduction}") private val suggestedGlossaryIntro: String,
     @Autowired private val glossariesRepository: GlossariesRepository
-) {
+): AbstractIntegrationTest() {
     private val now = Instant.now().toNoNanoSec()
     private val glossarySectionRegex = """\[(.*?)](.*)""".toRegex()
 
     companion object {
         @Container
         @ServiceConnection
-        val postgres: PostgreSQLContainer<*> = DockerImageName.parse("pgvector/pgvector:pg16")
-            .asCompatibleSubstituteFor("postgres")
-            .let { PostgreSQLContainer(it) }
+        val postgres = createPostgresContainer()
 
         @DynamicPropertySource
         @JvmStatic
@@ -59,13 +46,6 @@ class PromptsControllerIntegrationTest(
             val suggestedGlossaryIntro = aRandomUniqueString()
             registry.add("translation.prompt.suggested.glossary.introduction") { suggestedGlossaryIntro }
         }
-    }
-
-    @LocalServerPort private val port: Int? = null
-
-    @BeforeEach
-    fun setUp() {
-        RestAssured.baseURI = "http://localhost:$port"
     }
 
     @TestFactory

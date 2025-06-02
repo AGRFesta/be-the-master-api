@@ -11,7 +11,6 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.mockk.coEvery
 import io.mockk.every
-import io.restassured.RestAssured
 import io.restassured.RestAssured.given
 import io.restassured.common.mapper.TypeRef
 import io.restassured.http.ContentType
@@ -40,20 +39,11 @@ import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection
-import org.springframework.test.context.ActiveProfiles
-import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
-import org.testcontainers.junit.jupiter.Testcontainers
-import org.testcontainers.utility.DockerImageName
 import java.time.Instant
 import java.util.*
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Testcontainers
-@ActiveProfiles("test")
 class TextBitsControllerIntegrationTest(
     @Autowired private val testTextBitsRepo: TestingTextBitsRepository,
     @Autowired private val textBitsRepo: TextBitsRepository,
@@ -62,18 +52,13 @@ class TextBitsControllerIntegrationTest(
     @Autowired @MockkBean private val embeddingsProvider: EmbeddingsProvider,
     @Autowired @MockkBean private val randomGenerator: RandomGenerator,
     @Autowired @MockkBean private val timeService: TimeService
-) {
+): AbstractIntegrationTest() {
 
     companion object {
         @Container
         @ServiceConnection
-        val postgres: PostgreSQLContainer<*> = DockerImageName.parse("pgvector/pgvector:pg16")
-            .asCompatibleSubstituteFor("postgres")
-            .let { PostgreSQLContainer(it) }
+        val postgres = createPostgresContainer()
     }
-
-    @LocalServerPort
-    private val port: Int? = null
 
     private val uuid: UUID = UUID.randomUUID()
     private val now = Instant.now().toNoNanoSec()
@@ -81,9 +66,7 @@ class TextBitsControllerIntegrationTest(
     private val topic = Topic.RULE
 
     @BeforeEach
-    fun setUp() {
-        RestAssured.baseURI = "http://localhost:$port"
-
+    fun defaultMockBehaviourSetup() {
         every { randomGenerator.uuid() } returns uuid
         every { timeService.nowNoNano() } returns now
     }
