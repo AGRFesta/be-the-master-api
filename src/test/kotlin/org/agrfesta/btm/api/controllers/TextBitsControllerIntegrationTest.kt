@@ -353,7 +353,7 @@ class TextBitsControllerIntegrationTest(
             .then()
             .statusCode(200)
             .extract()
-            .`as`(object : TypeRef<List<Pair<String, Double>>>() {})
+            .`as`(object : TypeRef<List<SimilarityResultItem>>() {})
 
         result.shouldBeEmpty()
     }
@@ -384,9 +384,9 @@ class TextBitsControllerIntegrationTest(
             .then()
             .statusCode(200)
             .extract()
-            .`as`(object : TypeRef<List<Pair<String, Double>>>() {})
+            .`as`(object : TypeRef<List<SimilarityResultItem>>() {})
 
-        result.map { it.first }.shouldContainExactly("text C", "text A", "text E")
+        result.map { it.text }.shouldContainExactly("text C", "text A", "text E")
     }
 
     @Test fun `similaritySearch() Do not returns same topic and language but different game texts`() {
@@ -416,9 +416,9 @@ class TextBitsControllerIntegrationTest(
             .then()
             .statusCode(200)
             .extract()
-            .`as`(object : TypeRef<List<Pair<String, Double>>>() {})
+            .`as`(object : TypeRef<List<SimilarityResultItem>>() {})
 
-        result.map { it.first }.shouldContainExactly("text D", "text A", "text E")
+        result.map { it.text }.shouldContainExactly("text D", "text A", "text E")
     }
 
     @Test fun `similaritySearch() Do not returns same game and language but different topic texts`() {
@@ -448,9 +448,9 @@ class TextBitsControllerIntegrationTest(
             .then()
             .statusCode(200)
             .extract()
-            .`as`(object : TypeRef<List<Pair<String, Double>>>() {})
+            .`as`(object : TypeRef<List<SimilarityResultItem>>() {})
 
-        result.map { it.first }.shouldContainExactly("text D", "text A", "text E")
+        result.map { it.text }.shouldContainExactly("text D", "text A", "text E")
     }
 
     @Test fun `similaritySearch() Do not returns same game and topic but different language texts`() {
@@ -480,9 +480,9 @@ class TextBitsControllerIntegrationTest(
             .then()
             .statusCode(200)
             .extract()
-            .`as`(object : TypeRef<List<Pair<String, Double>>>() {})
+            .`as`(object : TypeRef<List<SimilarityResultItem>>() {})
 
-        result.map { it.first }.shouldContainExactly("text D", "text A", "text E")
+        result.map { it.text }.shouldContainExactly("text D", "text A", "text E")
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
