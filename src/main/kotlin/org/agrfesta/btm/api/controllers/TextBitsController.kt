@@ -149,7 +149,7 @@ class TextBitsController(
                     is PersistenceFailure -> internalServerError()
                         .body(MessageResponse("Unable to fetch embeddings!"))
                 }
-                is Right -> ok().body(result.value)
+                is Right -> ok().body(result.value.map { it.toSimilarityResultItem() })
             }
     }
 
@@ -195,6 +195,13 @@ data class TextBitSearchBySimilarityRequest(
     val text: String,
     val language: String
 )
+
+data class SimilarityResultItem(
+    val text: String,
+    val distance: Double
+)
+
+private fun Pair<String, Double>.toSimilarityResultItem() = SimilarityResultItem(first, second)
 
 fun Embedding.normalize(): Embedding {
     val norm = sqrt(map { it * it }.sum())
