@@ -43,7 +43,7 @@ class EmbeddingsDaoJdbcImpl(
     }
 
     @Deprecated("use searchBySimilarity instead")
-    override fun nearestTextBits(game: Game, embedding: Embedding): Either<PersistenceFailure, List<String>> {
+    override fun nearestChunks(game: Game, embedding: Embedding): Either<PersistenceFailure, List<String>> {
         return try {
             TODO("not implemented")
 //            val result = embeddingRepo.getNearestEmbeddings(target, game.name)

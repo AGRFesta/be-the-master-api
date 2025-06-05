@@ -1,23 +1,22 @@
 package org.agrfesta.btm.api.controllers
 
 import org.agrfesta.btm.api.model.Game
-import org.agrfesta.btm.api.model.TextBit
+import org.agrfesta.btm.api.model.Chunk
 import org.agrfesta.btm.api.model.Topic
 import org.agrfesta.btm.api.model.Translation
 import org.agrfesta.test.mothers.aRandomUniqueString
-import org.agrfesta.test.mothers.anEmbedding
 import java.util.*
 
 fun aGame() = Game.entries.random()
 fun aTopic() = Topic.entries.random()
 fun aLanguage() = aRandomUniqueString().take(2)
 
-fun aTextBit(
+fun aChunk(
     id: UUID = UUID.randomUUID(),
     game: Game = aGame(),
     topic: Topic = aTopic(),
     translations: Set<Translation> = emptySet()
-) = TextBit(id, game, topic, translations)
+) = Chunk(id, game, topic, translations)
 
 fun aTranslation(
     text: String = aRandomUniqueString(),
@@ -26,14 +25,14 @@ fun aTranslation(
 
 fun Translation.toJsonString() = """{"text": "$text", "language": "$language"}"""
 
-fun aTextBitCreationRequest(
+fun aChunkCreationRequest(
     game: Game = aGame(),
     translation: Translation = aTranslation(),
     topic: Topic = aTopic(),
     inBatch: Boolean? = null
-) = TextBitCreationRequest(game, topic, translation, inBatch ?: false)
+) = ChunkCreationRequest(game, topic, translation, inBatch ?: false)
 
-fun TextBitCreationRequest.toJsonString() = """
+fun ChunkCreationRequest.toJsonString() = """
         {
             "game": "$game", 
             "translation": ${translation.toJsonString()}, 
@@ -42,13 +41,13 @@ fun TextBitCreationRequest.toJsonString() = """
         }
     """.trimIndent()
 
-fun aTextBitTranslationsPatchRequest(
+fun aChunkTranslationsPatchRequest(
     text: String = aRandomUniqueString(),
     language: String = aLanguage(),
     inBatch: Boolean = false
-) = TextBitTranslationPatchRequest(text, language, inBatch)
+) = ChunkTranslationPatchRequest(text, language, inBatch)
 
-fun TextBitTranslationPatchRequest.toJsonString() = """
+fun ChunkTranslationPatchRequest.toJsonString() = """
         {
             "text": "$text",
             "language": "$language",
@@ -56,14 +55,14 @@ fun TextBitTranslationPatchRequest.toJsonString() = """
         }
     """.trimIndent()
 
-fun aTextBitSearchBySimilarityRequest(
+fun aChunkSearchBySimilarityRequest(
     game: Game = aGame(),
     topic: Topic = aTopic(),
     language: String = aLanguage(),
     text: String = aRandomUniqueString()
-) = TextBitSearchBySimilarityRequest(game.name, topic.name, text, language)
+) = ChunkSearchBySimilarityRequest(game.name, topic.name, text, language)
 
-fun aTextBitSearchBySimilarityRequestJson(
+fun aChunkSearchBySimilarityRequestJson(
     game: String = aGame().name,
     topic: String = aTopic().name,
     language: String = aLanguage(),
@@ -77,5 +76,5 @@ fun aTextBitSearchBySimilarityRequestJson(
         }
     """.trimIndent()
 
-fun TextBitSearchBySimilarityRequest.toJsonString() =
-    aTextBitSearchBySimilarityRequestJson(game, topic, language, text)
+fun ChunkSearchBySimilarityRequest.toJsonString() =
+    aChunkSearchBySimilarityRequestJson(game, topic, language, text)

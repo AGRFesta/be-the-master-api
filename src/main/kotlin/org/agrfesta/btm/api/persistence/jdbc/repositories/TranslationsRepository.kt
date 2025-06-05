@@ -24,7 +24,7 @@ class TranslationsRepository(
             created_on
         ) VALUES (
             :id,
-            :textBitId,
+            :chunkId,
             :languageCode,
             :text,
             CAST(:embeddingStatus AS embedding_status_enum),
@@ -34,7 +34,7 @@ class TranslationsRepository(
 
         val params = mapOf(
             "id" to entity.id,
-            "textBitId" to entity.textBitId,
+            "chunkId" to entity.chunkId,
             "languageCode" to entity.languageCode,
             "text" to entity.text,
             "embeddingStatus" to entity.embeddingStatus.name,
@@ -44,7 +44,7 @@ class TranslationsRepository(
         jdbcTemplate.update(sql, params)
     }
 
-    fun findTranslationByLanguage(textBitId: UUID, language: String): TranslationEntity? {
+    fun findTranslationByLanguage(chunkId: UUID, language: String): TranslationEntity? {
         val sql = """
             SELECT 
                 id,
@@ -54,17 +54,17 @@ class TranslationsRepository(
                 embedding_status,
                 created_on
             FROM btm.translations
-            WHERE text_bit_id = :textBitId
+            WHERE text_bit_id = :chunkId
             and language_code = :language
         """.trimIndent()
 
-        val params = mapOf("textBitId" to textBitId, "language" to language)
+        val params = mapOf("chunkId" to chunkId, "language" to language)
 
         val trs: TranslationEntity? = try {
             jdbcTemplate.queryForObject(sql, params) { rs, _ ->
                 TranslationEntity(
                     id = UUID.fromString(rs.getString("id")),
-                    textBitId = UUID.fromString(rs.getString("text_bit_id")),
+                    chunkId = UUID.fromString(rs.getString("text_bit_id")),
                     languageCode = rs.getString("language_code"),
                     text = rs.getString("text"),
                     embeddingStatus = EmbeddingStatus.valueOf(rs.getString("embedding_status")),
@@ -77,7 +77,7 @@ class TranslationsRepository(
         return trs
     }
 
-    fun findTranslations(textBitId: UUID): Collection<TranslationEntity> {
+    fun findTranslations(chunkId: UUID): Collection<TranslationEntity> {
         val sql = """
             SELECT 
                 id,
@@ -87,15 +87,15 @@ class TranslationsRepository(
                 embedding_status,
                 created_on
             FROM btm.translations
-            WHERE text_bit_id = :textBitId
+            WHERE text_bit_id = :chunkId
         """.trimIndent()
 
-        val params = mapOf("textBitId" to textBitId)
+        val params = mapOf("chunkId" to chunkId)
 
         return jdbcTemplate.query(sql, params) { rs, _ ->
             TranslationEntity(
                 id = UUID.fromString(rs.getString("id")),
-                textBitId = UUID.fromString(rs.getString("text_bit_id")),
+                chunkId = UUID.fromString(rs.getString("text_bit_id")),
                 languageCode = rs.getString("language_code"),
                 text = rs.getString("text"),
                 embeddingStatus = EmbeddingStatus.valueOf(rs.getString("embedding_status")),

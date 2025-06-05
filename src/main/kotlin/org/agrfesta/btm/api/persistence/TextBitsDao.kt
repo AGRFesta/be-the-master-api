@@ -1,37 +1,37 @@
 package org.agrfesta.btm.api.persistence
 
 import org.agrfesta.btm.api.model.Game
-import org.agrfesta.btm.api.model.TextBit
+import org.agrfesta.btm.api.model.Chunk
 import org.agrfesta.btm.api.model.Topic
 import org.springframework.transaction.annotation.Transactional
 import java.util.*
 
-interface TextBitsDao {
+interface ChunksDao {
 
     /**
-     * Finds [TextBit] by [textBitId].
+     * Finds [Chunk] by [chunkId].
      *
-     * @param textBitId [TextBit] unique identifier.
-     * @return found [TextBit] otherwise null.
+     * @param chunkId [Chunk] unique identifier.
+     * @return found [Chunk] otherwise null.
      */
-    fun findTextBit(textBitId: UUID): TextBit?
+    fun findChunk(chunkId: UUID): Chunk?
 
     /**
-     * Persists a [TextBit] by [topic] and [game].
+     * Persists a [Chunk] by [topic] and [game].
      *
-     * @param topic [TextBit] related [Topic].
-     * @param game [TextBit] related [Game].
-     * @return [UUID] assigned to persisted [TextBit].
+     * @param topic [Chunk] related [Topic].
+     * @param game [Chunk] related [Game].
+     * @return [UUID] assigned to persisted [Chunk].
      */
     @Transactional
     fun persist(topic: Topic, game: Game): UUID
 
     /**
-     * Deletes a [TextBit] by [textBitId].
+     * Deletes a [Chunk] by [chunkId].
      *
-     * @param textBitId [TextBit] unique identifier.
+     * @param chunkId [Chunk] unique identifier.
      */
     @Transactional
-    fun delete(textBitId: UUID)
+    fun delete(chunkId: UUID)
 
 }

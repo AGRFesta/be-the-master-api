@@ -45,7 +45,7 @@ class PromptsController(
                     is Left -> status(INTERNAL_SERVER_ERROR).body("Failure!")
                     is Right -> {
                         val target: Embedding = targetResult.value
-                        when (val nearestResult = embeddingsDao.nearestTextBits(party.game, target)) {
+                        when (val nearestResult = embeddingsDao.nearestChunks(party.game, target)) {
                             is Left -> status(INTERNAL_SERVER_ERROR).body("Failure!")
                             is Right -> {
                                 val partySection: String = party.members.joinToString(separator = "\n")

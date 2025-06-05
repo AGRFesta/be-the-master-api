@@ -1,7 +1,7 @@
 package org.agrfesta.btm.api.persistence
 
 import org.agrfesta.btm.api.model.EmbeddingStatus
-import org.agrfesta.btm.api.model.TextBit
+import org.agrfesta.btm.api.model.Chunk
 import org.agrfesta.btm.api.model.Translation
 import org.springframework.transaction.annotation.Transactional
 import java.util.*
@@ -9,31 +9,31 @@ import java.util.*
 interface TranslationsDao {
 
     /**
-     * Persists a [TextBit]'s [Translation].
+     * Persists a [Chunk]'s [Translation].
      *
-     * @param textBitId [TextBit] unique identifier.
+     * @param chunkId [Chunk] unique identifier.
      * @param translation [Translation] data.
      * @return [UUID] assigned to persisted [Translation].
      */
     @Transactional
-    fun persist(textBitId: UUID, translation: Translation): UUID
+    fun persist(chunkId: UUID, translation: Translation): UUID
 
     /**
-     * Fetches a specific language [TextBit]'s [Translation].
+     * Fetches a specific language [Chunk]'s [Translation].
      *
-     * @param textBitId [TextBit] unique identifier.
+     * @param chunkId [Chunk] unique identifier.
      * @param language [Translation] language.
      * @return found [Translation], null if missing.
      */
-    fun findTranslationByLanguage(textBitId: UUID, language: String): Translation?
+    fun findTranslationByLanguage(chunkId: UUID, language: String): Translation?
 
     /**
-     * Fetches all [TextBit]'s [Translation]s.
+     * Fetches all [Chunk]'s [Translation]s.
      *
-     * @param textBitId [TextBit] unique identifier.
+     * @param chunkId [Chunk] unique identifier.
      * @return found [Translation]s, could be empty.
      */
-    fun findTranslations(textBitId: UUID): Collection<Translation>
+    fun findTranslations(chunkId: UUID): Collection<Translation>
 
     /**
      * Updates [Translation]s embedding status.
@@ -48,13 +48,13 @@ interface TranslationsDao {
      * Adds a new [Translation] if do not exist already a [Translation] for the same language, otherwise replace it
      * removing previous [Translation] and related embedding.
      *
-     * @param textBitId [TextBit] unique identifier.
+     * @param chunkId [Chunk] unique identifier.
      * @param language [Translation] language.
      * @param newText new [Translation] text.
      * @return [UUID] assigned to the new persisted [Translation].
      */
     @Transactional
-    fun addOrReplace(textBitId: UUID, language: String, newText: String): UUID
+    fun addOrReplace(chunkId: UUID, language: String, newText: String): UUID
 
     /**
      * Deletes [Translation].

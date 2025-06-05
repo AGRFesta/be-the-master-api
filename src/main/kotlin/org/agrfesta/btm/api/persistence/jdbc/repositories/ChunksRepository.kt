@@ -1,9 +1,8 @@
 package org.agrfesta.btm.api.persistence.jdbc.repositories
 
 import org.agrfesta.btm.api.model.Game
-import org.agrfesta.btm.api.model.TextBit
+import org.agrfesta.btm.api.model.Chunk
 import org.agrfesta.btm.api.model.Topic
-import org.agrfesta.btm.api.model.Translation
 import org.springframework.dao.DataAccessException
 import org.springframework.dao.EmptyResultDataAccessException
 import org.springframework.jdbc.core.RowMapper
@@ -15,15 +14,15 @@ import java.time.Instant
 import java.util.*
 
 @Repository
-class TextBitsRepository(
+class ChunksRepository(
     private val jdbcTemplate: NamedParameterJdbcTemplate
 ) {
 
-    fun find(id: UUID): TextBit? {
-        val sql = """SELECT * FROM btm.text_bits WHERE id = :uuid"""
+    fun find(id: UUID): Chunk? {
+        val sql = """SELECT * FROM btm.chunks WHERE id = :uuid"""
         val params = mapOf("uuid" to id)
-        val area: TextBit? = try {
-            jdbcTemplate.queryForObject(sql, params, TextBitMapper)
+        val area: Chunk? = try {
+            jdbcTemplate.queryForObject(sql, params, ChunkMapper)
         } catch (e: EmptyResultDataAccessException) {
             null
         }
@@ -35,7 +34,7 @@ class TextBitsRepository(
      */
     fun insert(id: UUID, game: Game, topic: Topic, createdOn: Instant) {
         val sql = """
-        INSERT INTO btm.text_bits (id, game, created_on, topic)
+        INSERT INTO btm.chunks (id, game, created_on, topic)
         VALUES (:id, CAST(:game AS game_enum), :createdOn, CAST(:topic AS topic_enum));
         """
 
@@ -51,7 +50,7 @@ class TextBitsRepository(
 
     fun delete(uuid: UUID) {
         val sql = """
-            DELETE FROM btm.text_bits
+            DELETE FROM btm.chunks
             WHERE id = :uuid;
         """
         jdbcTemplate.update(sql, mapOf("uuid" to uuid))
@@ -59,8 +58,8 @@ class TextBitsRepository(
 
 }
 
-object TextBitMapper: RowMapper<TextBit> {
-    override fun mapRow(rs: ResultSet, rowNum: Int) = TextBit(
+object ChunkMapper: RowMapper<Chunk> {
+    override fun mapRow(rs: ResultSet, rowNum: Int) = Chunk(
         id = rs.getUuid("id"),
         game = Game.valueOf(rs.getString("game")),
         topic = Topic.valueOf(rs.getString("topic")),
