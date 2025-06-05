@@ -7,12 +7,12 @@ import org.agrfesta.btm.api.model.Embedding
 import org.agrfesta.btm.api.model.EmbeddingCreationFailure
 import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.model.PersistenceFailure
-import org.agrfesta.btm.api.model.TextBit
+import org.agrfesta.btm.api.model.Chunk
 import org.agrfesta.btm.api.model.Topic
 import org.agrfesta.btm.api.model.Translation
 import org.agrfesta.btm.api.services.Embedder
 import org.agrfesta.btm.api.services.EmbeddingsProvider
-import org.agrfesta.btm.api.services.TextBitsService
+import org.agrfesta.btm.api.services.ChunksService
 import org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR
 import org.springframework.http.ResponseEntity
 import org.springframework.http.ResponseEntity.badRequest
@@ -33,41 +33,41 @@ import kotlin.math.sqrt
  * and similarity-based search.
  */
 @RestController
-@RequestMapping("/text-bits")
-class TextBitsController(
-    private val textBitsService: TextBitsService,
+@RequestMapping("/chunks")
+class ChunksController(
+    private val chunksService: ChunksService,
     private val embeddingsProvider: EmbeddingsProvider
 ) {
     private val embedder: Embedder = {text -> runBlocking { embeddingsProvider.createEmbedding(text) }}
 
     /**
-     * POST /text-bits
+     * POST /chunks
      *
      * Creates a new text bit with a translation for a given game and topic.
      *
-     * @param request the [TextBitCreationRequest] containing game, topic, translation, and batch flag.
+     * @param request the [ChunkCreationRequest] containing game, topic, translation, and batch flag.
      * @return 200 OK if successful (with optional embedding warning), 400 if input is invalid,
      *         or 500 if persistence fails.
      */
     @PostMapping
-    fun createTextBit(@RequestBody request: TextBitCreationRequest): ResponseEntity<Any> {
+    fun createChunk(@RequestBody request: ChunkCreationRequest): ResponseEntity<Any> {
         if (request.translation.text.isBlank()) {
             return badRequest().body(MessageResponse("Text must not be empty!"))
         }
-        val textBit = try {
-            request.toTextBit()
+        val chunk = try {
+            request.toChunk()
         } catch (e: IllegalArgumentException) {
             return badRequest().body(MessageResponse(e.message ?: "no message"))
         }
 
-        when (val insertResult = textBitsService.createTextBit(request.game, request.topic)) {
+        when (val insertResult = chunksService.createChunk(request.game, request.topic)) {
             is Left -> return status(INTERNAL_SERVER_ERROR).body(MessageResponse("Unable to create text bit!"))
             is Right -> {
-                val textBitId = insertResult.value
+                val chunkId = insertResult.value
                 val languageFailures = mutableSetOf<String>()
-                request.translation.persist(textBitId, request.inBatch, languageFailures)
-//                textBit.translations.forEach {
-//                    it.persist(textBitId, request.inBatch, languageFailures)
+                request.translation.persist(chunkId, request.inBatch, languageFailures)
+//                chunk.translations.forEach {
+//                    it.persist(chunkId, request.inBatch, languageFailures)
 //                }
                 val warning = if (languageFailures.isEmpty()) ""
                 else " Failed embeddings creation."
@@ -77,30 +77,30 @@ class TextBitsController(
     }
 
     /**
-     * PATCH /text-bits/{id}
+     * PATCH /chunks/{id}
      *
      * Replaces an existing translation of a Text Bit with new text content.
      *
      * @param id the UUID of the text bit to update
-     * @param request the [TextBitTranslationPatchRequest] containing updated text, language, and batch flag
+     * @param request the [ChunkTranslationPatchRequest] containing updated text, language, and batch flag
      * @return 200 OK if successful, possibly with embedding failure warning,
      *         400 if input is invalid, 404 if bit not found, or 500 on error
      */
     @PatchMapping("/{id}")
-    fun update(@PathVariable id: UUID, @RequestBody request: TextBitTranslationPatchRequest): ResponseEntity<Any> {
+    fun update(@PathVariable id: UUID, @RequestBody request: ChunkTranslationPatchRequest): ResponseEntity<Any> {
         if (request.text.isBlank()) {
             return badRequest().body(MessageResponse("Text must not be empty!"))
         }
-        val textBit = try {
-            textBitsService.findTextBit(id)
+        val chunk = try {
+            chunksService.findChunk(id)
                 ?: return status(404).body(MessageResponse("Text bit $id is missing!"))
         } catch (e: Exception) {
             return internalServerError()
                 .body(MessageResponse("Unable to fetch text bit!"))
         }
 
-        return when(val result = textBitsService.replaceTranslation(
-            textBit.id,
+        return when(val result = chunksService.replaceTranslation(
+            chunk.id,
             request.language,
             request.text,
             if (request.inBatch) null else embedder)
@@ -116,15 +116,15 @@ class TextBitsController(
     }
 
     /**
-     * POST /text-bits/similarity-search
+     * POST /chunks/similarity-search
      *
      * Performs similarity search based on the embedding of the provided text.
      *
-     * @param request the [TextBitSearchBySimilarityRequest] including game, topic, text, and language.
+     * @param request the [ChunkSearchBySimilarityRequest] including game, topic, text, and language.
      * @return 200 OK with list of similar Text Bits, or appropriate error responses.
      */
     @PostMapping("/similarity-search")
-    fun similaritySearch(@RequestBody request: TextBitSearchBySimilarityRequest): ResponseEntity<Any> {
+    fun similaritySearch(@RequestBody request: ChunkSearchBySimilarityRequest): ResponseEntity<Any> {
         if (request.text.isBlank()) {
             return badRequest().body(MessageResponse("Text must not be blank!"))
         }
@@ -141,7 +141,7 @@ class TextBitsController(
         } catch (e: IllegalArgumentException) {
             return badRequest().body(MessageResponse("Topic is not valid!"))
         }
-       return when(val result = textBitsService
+       return when(val result = chunksService
            .searchBySimilarity(request.text, game, topic, request.language, embedder)) {
                 is Left -> when(result.value) {
                     EmbeddingCreationFailure -> internalServerError()
@@ -154,13 +154,13 @@ class TextBitsController(
     }
 
     private fun Translation.persist(
-        textBitId: UUID,
+        chunkId: UUID,
         inBatch: Boolean,
         languageFailures: MutableSet<String>
     ) {
-        textBitsService.persistTranslation(
+        chunksService.persistTranslation(
             this,
-            textBitId,
+            chunkId,
             if (inBatch) null else embedder
         ).onLeft {
             languageFailures.add(language)
@@ -169,13 +169,13 @@ class TextBitsController(
 
 }
 
-data class TextBitCreationRequest(
+data class ChunkCreationRequest(
     val game: Game,
     val topic: Topic,
     val translation: Translation,
     val inBatch: Boolean = false
 ) {
-    fun toTextBit() = TextBit(
+    fun toChunk() = Chunk(
         id = UUID.randomUUID(),
         game = game,
         topic = topic,
@@ -183,13 +183,13 @@ data class TextBitCreationRequest(
     )
 }
 
-data class TextBitTranslationPatchRequest(
+data class ChunkTranslationPatchRequest(
     val text: String,
     val language: String,
     val inBatch: Boolean = false
 )
 
-data class TextBitSearchBySimilarityRequest(
+data class ChunkSearchBySimilarityRequest(
     val game: String,
     val topic: String,
     val text: String,

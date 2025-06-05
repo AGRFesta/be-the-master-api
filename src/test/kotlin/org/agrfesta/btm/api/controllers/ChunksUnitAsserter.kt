@@ -6,7 +6,7 @@ import org.agrfesta.btm.api.persistence.TranslationsDao
 import org.springframework.boot.test.context.TestComponent
 
 @TestComponent
-class TextBitsUnitAsserter(
+class ChunksUnitAsserter(
     private val translationsDao: TranslationsDao,
     private val embeddingsDao: EmbeddingsDao
 ) {

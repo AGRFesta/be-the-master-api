@@ -6,7 +6,7 @@ import java.util.*
 
 class TranslationEntity(
     val id: UUID,
-    val textBitId: UUID,
+    val chunkId: UUID,
     val languageCode: String,
     val text: String,
     val embeddingStatus: EmbeddingStatus,

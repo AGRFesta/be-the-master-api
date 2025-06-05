@@ -60,7 +60,7 @@ class EmbeddingRepository(
             SELECT t.text, e.vector <=> :target AS distance
             FROM btm.embeddings e
             JOIN btm.translations t ON e.translation_id = t.id
-            JOIN btm.text_bits tb ON t.text_bit_id = tb.id
+            JOIN btm.chunks tb ON t.text_bit_id = tb.id
             WHERE tb.game = CAST(:game AS game_enum)
               AND tb.topic = CAST(:topic AS topic_enum)
               AND t.language_code = :languageCode

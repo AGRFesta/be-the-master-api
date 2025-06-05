@@ -9,9 +9,9 @@ import java.util.*
 
 fun aTranslationEntity(
     id: UUID = UUID.randomUUID(),
-    textBitId: UUID,
+    chunkId: UUID,
     languageCode: String = aRandomUniqueString(),
     text: String = aRandomUniqueString(),
     embeddingStatus: EmbeddingStatus = UNEMBEDDED,
     createdOn: Instant = Instant.now().toNoNanoSec()
-) = TranslationEntity(id, textBitId, languageCode, text, embeddingStatus, createdOn)
+) = TranslationEntity(id, chunkId, languageCode, text, embeddingStatus, createdOn)

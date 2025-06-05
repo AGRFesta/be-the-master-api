@@ -8,31 +8,31 @@ import org.agrfesta.btm.api.model.BtmFlowFailure
 import org.agrfesta.btm.api.model.EmbeddingStatus.EMBEDDED
 import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.model.PersistenceFailure
-import org.agrfesta.btm.api.model.TextBit
+import org.agrfesta.btm.api.model.Chunk
 import org.agrfesta.btm.api.model.Topic
 import org.agrfesta.btm.api.model.Translation
 import org.agrfesta.btm.api.persistence.EmbeddingsDao
-import org.agrfesta.btm.api.persistence.TextBitsDao
+import org.agrfesta.btm.api.persistence.ChunksDao
 import org.agrfesta.btm.api.persistence.TranslationsDao
 import org.springframework.stereotype.Service
 import java.util.*
 
 @Service
-class TextBitsService(
-    private val textBitsDao: TextBitsDao,
+class ChunksService(
+    private val chunksDao: ChunksDao,
     private val translationsDao: TranslationsDao,
     private val embeddingsDao: EmbeddingsDao
 ) {
 
-    fun findTextBit(uuid: UUID): TextBit? = textBitsDao.findTextBit(uuid)
+    fun findChunk(uuid: UUID): Chunk? = chunksDao.findChunk(uuid)
 
     //TODO do we really need this?
     fun persistTranslation(
         translation: Translation,
-        textBitId: UUID,
+        chunkId: UUID,
         embedder: Embedder? = null
     ): Either<BtmFlowFailure, UUID> {
-        val translationId = translationsDao.persist(textBitId, translation)
+        val translationId = translationsDao.persist(chunkId, translation)
         return embedder?.let {
             embedder(translation.text).flatMap {
                 embeddingsDao.persist(translationId, it).flatMap {
@@ -43,29 +43,29 @@ class TextBitsService(
         } ?: translationId.right()
     }
 
-    fun createTextBit(game: Game, topic: Topic): Either<BtmFlowFailure, UUID> = try {
-        textBitsDao.persist(topic, game).right()
+    fun createChunk(game: Game, topic: Topic): Either<BtmFlowFailure, UUID> = try {
+        chunksDao.persist(topic, game).right()
     } catch (e: Exception) {
         PersistenceFailure("Text bit persistence failure!", e).left()
     }
 
     /**
-     * For a specific [TextBit] identified by [textBitId], replace language translation if already exist otherwise
+     * For a specific [Chunk] identified by [chunkId], replace language translation if already exist otherwise
      * simply adds it. Optionally (if [embedder] is not null) creates embedding for the new text.
      *
-     * @param textBitId [TextBit] unique identifier.
+     * @param chunkId [Chunk] unique identifier.
      * @param language [Translation] language.
      * @param newText new [Translation] text.
      * @param embedder optional embedding function.
      */
     fun replaceTranslation(
-        textBitId: UUID,
+        chunkId: UUID,
         language: String,
         newText: String,
         embedder: Embedder? = null
     ): Either<BtmFlowFailure, Unit> {
         val translationId = try {
-            translationsDao.addOrReplace(textBitId, language, newText)
+            translationsDao.addOrReplace(chunkId, language, newText)
         } catch (e: Exception) {
             return PersistenceFailure("Unable to patch translations", e).left()
         }

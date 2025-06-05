@@ -14,7 +14,7 @@ interface EmbeddingsDao {
     fun persist(translationId: UUID, embedding: Embedding): Either<PersistenceFailure, UUID>
 
     @Deprecated("use searchBySimilarity instead")
-    fun nearestTextBits(game: Game, embedding: Embedding): Either<PersistenceFailure, List<String>>
+    fun nearestChunks(game: Game, embedding: Embedding): Either<PersistenceFailure, List<String>>
 
     fun searchBySimilarity(target: Embedding, game: Game, topic: Topic, language: String): List<Pair<String, Double>>
 

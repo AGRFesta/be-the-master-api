@@ -20,11 +20,11 @@ import org.agrfesta.btm.api.model.EmbeddingStatus.EMBEDDED
 import org.agrfesta.btm.api.model.EmbeddingStatus.UNEMBEDDED
 import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.model.Topic
-import org.agrfesta.btm.api.persistence.TestingTextBitsRepository
+import org.agrfesta.btm.api.persistence.TestingChunksRepository
 import org.agrfesta.btm.api.persistence.jdbc.entities.TranslationEntity
 import org.agrfesta.btm.api.persistence.jdbc.entities.aTranslationEntity
 import org.agrfesta.btm.api.persistence.jdbc.repositories.EmbeddingRepository
-import org.agrfesta.btm.api.persistence.jdbc.repositories.TextBitsRepository
+import org.agrfesta.btm.api.persistence.jdbc.repositories.ChunksRepository
 import org.agrfesta.btm.api.persistence.jdbc.repositories.TranslationsRepository
 import org.agrfesta.btm.api.services.EmbeddingsProvider
 import org.agrfesta.btm.api.services.utils.RandomGenerator
@@ -44,9 +44,9 @@ import org.testcontainers.junit.jupiter.Container
 import java.time.Instant
 import java.util.*
 
-class TextBitsControllerIntegrationTest(
-    @Autowired private val testTextBitsRepo: TestingTextBitsRepository,
-    @Autowired private val textBitsRepo: TextBitsRepository,
+class ChunksControllerIntegrationTest(
+    @Autowired private val testChunksRepo: TestingChunksRepository,
+    @Autowired private val chunksRepo: ChunksRepository,
     @Autowired private val embeddingRepo: EmbeddingRepository,
     @Autowired private val translationsRepo: TranslationsRepository,
     @Autowired @MockkBean private val embeddingsProvider: EmbeddingsProvider,
@@ -71,11 +71,11 @@ class TextBitsControllerIntegrationTest(
         every { timeService.nowNoNano() } returns now
     }
 
-    ///// createTextBit ////////////////////////////////////////////////////////////////////////////////////////////////
+    ///// createChunk ////////////////////////////////////////////////////////////////////////////////////////////////
 
-    @Test fun `createTextBit() Creates text bit and embeddings for translation`() {
+    @Test fun `createChunk() Creates text bit and embeddings for translation`() {
         val translation = aTranslation(language = "en")
-        val request = aTextBitCreationRequest(translation = translation)
+        val request = aChunkCreationRequest(translation = translation)
         val translationEmbedding = anEmbedding()
         val uuidList = listOf(
             uuid,
@@ -89,19 +89,19 @@ class TextBitsControllerIntegrationTest(
             .contentType(ContentType.JSON)
             .body(request.toJsonString())
             .`when`()
-            .post("/text-bits")
+            .post("/chunks")
             .then()
             .statusCode(200)
             .extract()
             .`as`(MessageResponse::class.java)
 
         result.message shouldBe "Text bit successfully persisted!"
-        val textBit = testTextBitsRepo.findById(uuid)
-        textBit.shouldNotBeNull()
-        textBit.game shouldBe request.game.name
-        textBit.topic shouldBe request.topic.name
-        textBit.createdOn shouldBe now
-        textBit.updatedOn.shouldBeNull()
+        val chunk = testChunksRepo.findById(uuid)
+        chunk.shouldNotBeNull()
+        chunk.game shouldBe request.game.name
+        chunk.topic shouldBe request.topic.name
+        chunk.createdOn shouldBe now
+        chunk.updatedOn.shouldBeNull()
 
         val translations = translationsRepo.findTranslations(uuid).shouldHaveSize(1)
         val persisted = translations.first()
@@ -113,9 +113,9 @@ class TextBitsControllerIntegrationTest(
         persistedEmbedding.vector.toList() shouldBe translationEmbedding.toList()
     }
 
-    @Test fun `createTextBit() Creates text bit and translations only, when inBatch is true`() {
+    @Test fun `createChunk() Creates text bit and translations only, when inBatch is true`() {
         val translation = aTranslation(language = "en")
-        val request = aTextBitCreationRequest(
+        val request = aChunkCreationRequest(
             translation = translation,
             inBatch = true
         )
@@ -129,14 +129,14 @@ class TextBitsControllerIntegrationTest(
             .contentType(ContentType.JSON)
             .body(request.toJsonString())
             .`when`()
-            .post("/text-bits")
+            .post("/chunks")
             .then()
             .statusCode(200)
             .extract()
             .`as`(MessageResponse::class.java)
 
         result.message shouldBe "Text bit successfully persisted!"
-        testTextBitsRepo.findById(uuid).shouldNotBeNull()
+        testChunksRepo.findById(uuid).shouldNotBeNull()
 
         val translations = translationsRepo.findTranslations(uuid).shouldHaveSize(1)
         val persisted = translations.first()
@@ -147,9 +147,9 @@ class TextBitsControllerIntegrationTest(
         embeddingRepo.findEmbeddingByTranslationId(persisted.id).shouldBeNull()
     }
 
-    @Test fun `createTextBit() Creates text bit and translations only, when embedding creation fails`() {
+    @Test fun `createChunk() Creates text bit and translations only, when embedding creation fails`() {
         val translation = aTranslation(language = "en")
-        val request = aTextBitCreationRequest(translation = translation, inBatch = false)
+        val request = aChunkCreationRequest(translation = translation, inBatch = false)
         val uuidList = listOf(
             uuid,
             UUID.randomUUID() // translation
@@ -161,7 +161,7 @@ class TextBitsControllerIntegrationTest(
             .contentType(ContentType.JSON)
             .body(request.toJsonString())
             .`when`()
-            .post("/text-bits")
+            .post("/chunks")
             .then()
             .statusCode(200)
             .extract()
@@ -169,7 +169,7 @@ class TextBitsControllerIntegrationTest(
 
         result.message shouldBe
                 "Text bit successfully persisted! Failed embeddings creation."
-        testTextBitsRepo.findById(uuid).shouldNotBeNull()
+        testChunksRepo.findById(uuid).shouldNotBeNull()
         val translations = translationsRepo.findTranslations(uuid).shouldHaveSize(1)
         val persisted = translations.first()
         persisted.text shouldBe translation.text
@@ -184,30 +184,30 @@ class TextBitsControllerIntegrationTest(
     ///// update ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
     @Test fun `update() Returns 404 when text bit is missing`() {
-        testTextBitsRepo.findById(uuid).shouldBeNull()
+        testChunksRepo.findById(uuid).shouldBeNull()
 
         val result = given()
             .contentType(ContentType.JSON)
-            .body(aTextBitTranslationsPatchRequest().toJsonString())
+            .body(aChunkTranslationsPatchRequest().toJsonString())
             .`when`()
-            .patch("/text-bits/$uuid")
+            .patch("/chunks/$uuid")
             .then()
             .statusCode(404)
             .extract()
             .`as`(MessageResponse::class.java)
 
         result.message shouldBe "Text bit $uuid is missing!"
-        testTextBitsRepo.findById(uuid).shouldBeNull()
+        testChunksRepo.findById(uuid).shouldBeNull()
     }
 
     @Test fun `update() Add translations when missing`() {
-        val request = aTextBitTranslationsPatchRequest(inBatch = true, language = "de")
+        val request = aChunkTranslationsPatchRequest(inBatch = true, language = "de")
         val uuid: UUID = UUID.randomUUID()
         val creationTime = now.minusSeconds(50_000)
-        textBitsRepo.insert(uuid, Game.MAUSRITTER, topic, creationTime)
-        val original = aTranslationEntity(textBitId = uuid, languageCode = "en")
-        val itTranslation = aTranslationEntity(textBitId = uuid, languageCode = "it")
-        val frTranslation = aTranslationEntity(textBitId = uuid, languageCode = "fr")
+        chunksRepo.insert(uuid, Game.MAUSRITTER, topic, creationTime)
+        val original = aTranslationEntity(chunkId = uuid, languageCode = "en")
+        val itTranslation = aTranslationEntity(chunkId = uuid, languageCode = "it")
+        val frTranslation = aTranslationEntity(chunkId = uuid, languageCode = "fr")
         translationsRepo.insert(original)
         translationsRepo.insert(itTranslation)
         translationsRepo.insert(frTranslation)
@@ -216,7 +216,7 @@ class TextBitsControllerIntegrationTest(
             .contentType(ContentType.JSON)
             .body(request)
             .`when`()
-            .patch("/text-bits/$uuid")
+            .patch("/chunks/$uuid")
             .then()
             .statusCode(200)
             .extract()
@@ -238,7 +238,7 @@ class TextBitsControllerIntegrationTest(
     ).map {
         dynamicTest(" -> '$it'") {
             val uuid: UUID = UUID.randomUUID()
-            textBitsRepo.insert(uuid, Game.MAUSRITTER, topic, now)
+            chunksRepo.insert(uuid, Game.MAUSRITTER, topic, now)
             every { randomGenerator.uuid() } returns UUID.randomUUID()
             val embedding = anEmbedding()
             coEvery { embeddingsProvider.createEmbedding(text) } returns embedding.right()
@@ -247,7 +247,7 @@ class TextBitsControllerIntegrationTest(
                 .contentType(ContentType.JSON)
                 .body(it)
                 .`when`()
-                .patch("/text-bits/$uuid")
+                .patch("/chunks/$uuid")
                 .then()
                 .statusCode(200)
                 .extract()
@@ -266,9 +266,9 @@ class TextBitsControllerIntegrationTest(
         val originalText = aRandomUniqueString()
         val embedding = anEmbedding()
         val newEmbedding = anEmbedding()
-        val request = aTextBitTranslationsPatchRequest(language = "it", inBatch = false)
+        val request = aChunkTranslationsPatchRequest(language = "it", inBatch = false)
         val creationTime = now.minusSeconds(50_000)
-        textBitsRepo.insert(uuid, Game.MAUSRITTER, topic, creationTime)
+        chunksRepo.insert(uuid, Game.MAUSRITTER, topic, creationTime)
         val translationId = UUID.randomUUID()
         translationsRepo.insert(
             TranslationEntity(
@@ -286,7 +286,7 @@ class TextBitsControllerIntegrationTest(
             .contentType(ContentType.JSON)
             .body(request)
             .`when`()
-            .patch("/text-bits/$uuid")
+            .patch("/chunks/$uuid")
             .then()
             .statusCode(200)
             .extract()
@@ -303,9 +303,9 @@ class TextBitsControllerIntegrationTest(
     @Test fun `update() Replace a translation removing old embedding when new embedding creation fails`() {
         val originalText = aRandomUniqueString()
         val embedding = anEmbedding().normalize()
-        val request = aTextBitTranslationsPatchRequest(language = "it", inBatch = false)
+        val request = aChunkTranslationsPatchRequest(language = "it", inBatch = false)
         val creationTime = now.minusSeconds(50_000)
-        textBitsRepo.insert(uuid, Game.MAUSRITTER, topic, creationTime)
+        chunksRepo.insert(uuid, Game.MAUSRITTER, topic, creationTime)
         val translationId = UUID.randomUUID()
         translationsRepo.insert(
             TranslationEntity(
@@ -323,7 +323,7 @@ class TextBitsControllerIntegrationTest(
             .contentType(ContentType.JSON)
             .body(request)
             .`when`()
-            .patch("/text-bits/$uuid")
+            .patch("/chunks/$uuid")
             .then()
             .statusCode(200)
             .extract()
@@ -341,7 +341,7 @@ class TextBitsControllerIntegrationTest(
     ///// similaritySearch /////////////////////////////////////////////////////////////////////////////////////////////
 
     @Test fun `similaritySearch() Returns empty list when there are no text bits`() {
-        val request = aTextBitSearchBySimilarityRequest()
+        val request = aChunkSearchBySimilarityRequest()
         val targetEmbedding = anEmbedding()
         coEvery { embeddingsProvider.createEmbedding(request.text) } returns targetEmbedding.right()
 
@@ -349,7 +349,7 @@ class TextBitsControllerIntegrationTest(
             .contentType(ContentType.JSON)
             .body(request.toJsonString())
             .`when`()
-            .post("/text-bits/similarity-search")
+            .post("/chunks/similarity-search")
             .then()
             .statusCode(200)
             .extract()
@@ -362,25 +362,25 @@ class TextBitsControllerIntegrationTest(
         val game = aGame()
         val topic = aTopic()
         val language = aLanguage()
-        val request = aTextBitSearchBySimilarityRequest(game = game, language = language, topic = topic)
+        val request = aChunkSearchBySimilarityRequest(game = game, language = language, topic = topic)
         val targetEmbedding = aNormalizedEmbedding()
         val embeddingA = generateVectorWithDistance(targetEmbedding, 0.5)
         val embeddingB = generateVectorWithDistance(targetEmbedding, 2.0)
         val embeddingC = generateVectorWithDistance(targetEmbedding, 0.01)
         val embeddingD = generateVectorWithDistance(targetEmbedding, 1.0)
         val embeddingE = generateVectorWithDistance(targetEmbedding, 0.59)
-        givenTextBitEmbedding(game = game, language = language, topic = topic, text = "text A", embedding = embeddingA)
-        givenTextBitEmbedding(game = game, language = language, topic = topic, text = "text B", embedding = embeddingB)
-        givenTextBitEmbedding(game = game, language = language, topic = topic, text = "text C", embedding = embeddingC)
-        givenTextBitEmbedding(game = game, language = language, topic = topic, text = "text D", embedding = embeddingD)
-        givenTextBitEmbedding(game = game, language = language, topic = topic, text = "text E", embedding = embeddingE)
+        givenChunkEmbedding(game = game, language = language, topic = topic, text = "text A", embedding = embeddingA)
+        givenChunkEmbedding(game = game, language = language, topic = topic, text = "text B", embedding = embeddingB)
+        givenChunkEmbedding(game = game, language = language, topic = topic, text = "text C", embedding = embeddingC)
+        givenChunkEmbedding(game = game, language = language, topic = topic, text = "text D", embedding = embeddingD)
+        givenChunkEmbedding(game = game, language = language, topic = topic, text = "text E", embedding = embeddingE)
         coEvery { embeddingsProvider.createEmbedding(request.text) } returns targetEmbedding.right()
 
         val result = given()
             .contentType(ContentType.JSON)
             .body(request.toJsonString())
             .`when`()
-            .post("/text-bits/similarity-search")
+            .post("/chunks/similarity-search")
             .then()
             .statusCode(200)
             .extract()
@@ -393,7 +393,7 @@ class TextBitsControllerIntegrationTest(
         val game = aGame()
         val topic = aTopic()
         val language = aLanguage()
-        val request = aTextBitSearchBySimilarityRequest(game = game, language = language, topic = topic)
+        val request = aChunkSearchBySimilarityRequest(game = game, language = language, topic = topic)
         val targetEmbedding = aNormalizedEmbedding()
         val embA = generateVectorWithDistance(targetEmbedding, 0.5)
         val embB = generateVectorWithDistance(targetEmbedding, 0.35)
@@ -401,18 +401,18 @@ class TextBitsControllerIntegrationTest(
         val embD = generateVectorWithDistance(targetEmbedding, 0.3)
         val embE = generateVectorWithDistance(targetEmbedding, 0.59)
         val anotherGame = (Game.entries - game).random()
-        givenTextBitEmbedding(game = game, language = language, topic = topic, text = "text A", embedding = embA)
-        givenTextBitEmbedding(game = anotherGame, language = language, topic = topic, text = "text B", embedding = embB)
-        givenTextBitEmbedding(game = anotherGame, language = language, topic = topic, text = "text C", embedding = embC)
-        givenTextBitEmbedding(game = game, language = language, topic = topic, text = "text D", embedding = embD)
-        givenTextBitEmbedding(game = game, language = language, topic = topic, text = "text E", embedding = embE)
+        givenChunkEmbedding(game = game, language = language, topic = topic, text = "text A", embedding = embA)
+        givenChunkEmbedding(game = anotherGame, language = language, topic = topic, text = "text B", embedding = embB)
+        givenChunkEmbedding(game = anotherGame, language = language, topic = topic, text = "text C", embedding = embC)
+        givenChunkEmbedding(game = game, language = language, topic = topic, text = "text D", embedding = embD)
+        givenChunkEmbedding(game = game, language = language, topic = topic, text = "text E", embedding = embE)
         coEvery { embeddingsProvider.createEmbedding(request.text) } returns targetEmbedding.right()
 
         val result = given()
             .contentType(ContentType.JSON)
             .body(request.toJsonString())
             .`when`()
-            .post("/text-bits/similarity-search")
+            .post("/chunks/similarity-search")
             .then()
             .statusCode(200)
             .extract()
@@ -425,7 +425,7 @@ class TextBitsControllerIntegrationTest(
         val game = aGame()
         val topic = aTopic()
         val language = aLanguage()
-        val request = aTextBitSearchBySimilarityRequest(game = game, language = language, topic = topic)
+        val request = aChunkSearchBySimilarityRequest(game = game, language = language, topic = topic)
         val targetEmbedding = aNormalizedEmbedding()
         val embA = generateVectorWithDistance(targetEmbedding, 0.5)
         val embB = generateVectorWithDistance(targetEmbedding, 0.35)
@@ -433,18 +433,18 @@ class TextBitsControllerIntegrationTest(
         val embD = generateVectorWithDistance(targetEmbedding, 0.3)
         val embE = generateVectorWithDistance(targetEmbedding, 0.59)
         val anotherTopic = (Topic.entries - topic).random()
-        givenTextBitEmbedding(topic = topic, language = language, game = game, text = "text A", embedding = embA)
-        givenTextBitEmbedding(topic = anotherTopic, language = language, game = game, text = "text B", embedding = embB)
-        givenTextBitEmbedding(topic = anotherTopic, language = language, game = game, text = "text C", embedding = embC)
-        givenTextBitEmbedding(topic = topic, language = language, game = game, text = "text D", embedding = embD)
-        givenTextBitEmbedding(topic = topic, language = language, game = game, text = "text E", embedding = embE)
+        givenChunkEmbedding(topic = topic, language = language, game = game, text = "text A", embedding = embA)
+        givenChunkEmbedding(topic = anotherTopic, language = language, game = game, text = "text B", embedding = embB)
+        givenChunkEmbedding(topic = anotherTopic, language = language, game = game, text = "text C", embedding = embC)
+        givenChunkEmbedding(topic = topic, language = language, game = game, text = "text D", embedding = embD)
+        givenChunkEmbedding(topic = topic, language = language, game = game, text = "text E", embedding = embE)
         coEvery { embeddingsProvider.createEmbedding(request.text) } returns targetEmbedding.right()
 
         val result = given()
             .contentType(ContentType.JSON)
             .body(request.toJsonString())
             .`when`()
-            .post("/text-bits/similarity-search")
+            .post("/chunks/similarity-search")
             .then()
             .statusCode(200)
             .extract()
@@ -457,7 +457,7 @@ class TextBitsControllerIntegrationTest(
         val game = aGame()
         val topic = aTopic()
         val language = aLanguage()
-        val request = aTextBitSearchBySimilarityRequest(game = game, topic = topic, language = language)
+        val request = aChunkSearchBySimilarityRequest(game = game, topic = topic, language = language)
         val targetEmbedding = aNormalizedEmbedding()
         val embeddingA = generateVectorWithDistance(targetEmbedding, 0.5)
         val embeddingB = generateVectorWithDistance(targetEmbedding, 0.35)
@@ -465,18 +465,18 @@ class TextBitsControllerIntegrationTest(
         val embeddingD = generateVectorWithDistance(targetEmbedding, 0.3)
         val embeddingE = generateVectorWithDistance(targetEmbedding, 0.59)
         val another = language.reversed()
-        givenTextBitEmbedding(language = language, topic = topic, game = game, text = "text A", embedding = embeddingA)
-        givenTextBitEmbedding(language = another, topic = topic, game = game, text = "text B", embedding = embeddingB)
-        givenTextBitEmbedding(language = another, topic = topic, game = game, text = "text C", embedding = embeddingC)
-        givenTextBitEmbedding(language = language, topic = topic, game = game, text = "text D", embedding = embeddingD)
-        givenTextBitEmbedding(language = language, topic = topic, game = game, text = "text E", embedding = embeddingE)
+        givenChunkEmbedding(language = language, topic = topic, game = game, text = "text A", embedding = embeddingA)
+        givenChunkEmbedding(language = another, topic = topic, game = game, text = "text B", embedding = embeddingB)
+        givenChunkEmbedding(language = another, topic = topic, game = game, text = "text C", embedding = embeddingC)
+        givenChunkEmbedding(language = language, topic = topic, game = game, text = "text D", embedding = embeddingD)
+        givenChunkEmbedding(language = language, topic = topic, game = game, text = "text E", embedding = embeddingE)
         coEvery { embeddingsProvider.createEmbedding(request.text) } returns targetEmbedding.right()
 
         val result = given()
             .contentType(ContentType.JSON)
             .body(request.toJsonString())
             .`when`()
-            .post("/text-bits/similarity-search")
+            .post("/chunks/similarity-search")
             .then()
             .statusCode(200)
             .extract()
@@ -487,17 +487,17 @@ class TextBitsControllerIntegrationTest(
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    private fun givenTextBitEmbedding(
+    private fun givenChunkEmbedding(
         game: Game = aGame(),
         topic: Topic = aTopic(),
         language: String = aLanguage(),
         text: String,
         embedding: Embedding
     ): UUID {
-        val textBit = aTextBit(game = game, topic = topic)
-        textBitsRepo.insert(textBit.id, game, topic, createdOn = now)
+        val chunk = aChunk(game = game, topic = topic)
+        chunksRepo.insert(chunk.id, game, topic, createdOn = now)
         val translation = aTranslationEntity(
-            textBitId = textBit.id,
+            chunkId = chunk.id,
             embeddingStatus = EMBEDDED,
             text = text,
             languageCode = language)

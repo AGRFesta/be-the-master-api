@@ -2,7 +2,7 @@ package org.agrfesta.btm.api.model
 
 import java.util.UUID
 
-class TextBit(
+class Chunk(
     val id: UUID,
     val game: Game,
     val topic: Topic,

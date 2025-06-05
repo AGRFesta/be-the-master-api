@@ -20,14 +20,14 @@ class TranslationsDaoJdbcImpl(
 ): TranslationsDao {
 
     override fun persist(
-        textBitId: UUID,
+        chunkId: UUID,
         translation: Translation
     ): UUID {
         val now = timeService.nowNoNano()
         val id = randomGenerator.uuid()
         translationsRepo.insert(TranslationEntity(
             id = id,
-            textBitId = textBitId,
+            chunkId = chunkId,
             text = translation.text,
             languageCode = translation.language,
             embeddingStatus = EmbeddingStatus.UNEMBEDDED,
@@ -36,13 +36,13 @@ class TranslationsDaoJdbcImpl(
         return id
     }
 
-    override fun findTranslationByLanguage(textBitId: UUID, language: String): Translation? =
-        translationsRepo.findTranslationByLanguage(textBitId, language)?.let {
+    override fun findTranslationByLanguage(chunkId: UUID, language: String): Translation? =
+        translationsRepo.findTranslationByLanguage(chunkId, language)?.let {
             Translation(text = it.text, language = it.languageCode)
         }
 
-    override fun findTranslations(textBitId: UUID): Collection<Translation> =
-        translationsRepo.findTranslations(textBitId).map {
+    override fun findTranslations(chunkId: UUID): Collection<Translation> =
+        translationsRepo.findTranslations(chunkId).map {
             Translation(text = it.text, language = it.languageCode)
         }
 
@@ -50,8 +50,8 @@ class TranslationsDaoJdbcImpl(
         translationsRepo.update(translationId, embeddingStatus = embeddingStatus)
     }
 
-    override fun addOrReplace(textBitId: UUID, language: String, newText: String): UUID {
-        val translation = translationsRepo.findTranslationByLanguage(textBitId, language)
+    override fun addOrReplace(chunkId: UUID, language: String, newText: String): UUID {
+        val translation = translationsRepo.findTranslationByLanguage(chunkId, language)
         return if (translation != null) {
             embeddingRepo.deleteByTranslationId(translation.id)
             translationsRepo.delete(translation.id)
@@ -59,7 +59,7 @@ class TranslationsDaoJdbcImpl(
             translationsRepo.insert(
                 TranslationEntity(
                     id = uuid,
-                    textBitId = textBitId,
+                    chunkId = chunkId,
                     languageCode = language,
                     text = newText,
                     embeddingStatus = EmbeddingStatus.UNEMBEDDED,
@@ -69,7 +69,7 @@ class TranslationsDaoJdbcImpl(
             uuid
         } else {
             persist(
-                textBitId = textBitId,
+                chunkId = chunkId,
                 translation = Translation(text = newText, language = language)
             )
         }

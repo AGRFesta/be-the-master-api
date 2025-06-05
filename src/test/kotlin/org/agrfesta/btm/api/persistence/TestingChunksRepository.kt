@@ -9,21 +9,21 @@ import java.time.Instant
 import java.util.*
 
 @Service
-class TestingTextBitsRepository(
+class TestingChunksRepository(
     private val jdbcTemplate: NamedParameterJdbcTemplate
 ) {
 
-    fun findById(id: UUID): TextBitEntity? {
-        val sql = """SELECT * FROM btm.text_bits WHERE id = :id;"""
+    fun findById(id: UUID): ChunkEntity? {
+        val sql = """SELECT * FROM btm.chunks WHERE id = :id;"""
         val params = MapSqlParameterSource(mapOf("id" to id))
-        return jdbcTemplate.query(sql, params, TextBitRowMapper)
+        return jdbcTemplate.query(sql, params, ChunkRowMapper)
             .firstOrNull()
     }
 
 }
 
-object TextBitRowMapper: RowMapper<TextBitEntity> {
-    override fun mapRow(rs: ResultSet, rowNum: Int) = TextBitEntity(
+object ChunkRowMapper: RowMapper<ChunkEntity> {
+    override fun mapRow(rs: ResultSet, rowNum: Int) = ChunkEntity(
         id = UUID.fromString(rs.getString("id")),
         game = rs.getString("game"),
         topic = rs.getString("topic"),
@@ -32,7 +32,7 @@ object TextBitRowMapper: RowMapper<TextBitEntity> {
     )
 }
 
-class TextBitEntity(
+class ChunkEntity(
     val id: UUID,
     val game: String,
     val topic: String,

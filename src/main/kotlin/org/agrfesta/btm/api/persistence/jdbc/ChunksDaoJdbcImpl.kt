@@ -1,27 +1,27 @@
 package org.agrfesta.btm.api.persistence.jdbc
 
 import org.agrfesta.btm.api.model.Game
-import org.agrfesta.btm.api.model.TextBit
+import org.agrfesta.btm.api.model.Chunk
 import org.agrfesta.btm.api.model.Topic
-import org.agrfesta.btm.api.persistence.TextBitsDao
-import org.agrfesta.btm.api.persistence.jdbc.repositories.TextBitsRepository
+import org.agrfesta.btm.api.persistence.ChunksDao
+import org.agrfesta.btm.api.persistence.jdbc.repositories.ChunksRepository
 import org.agrfesta.btm.api.services.utils.RandomGenerator
 import org.agrfesta.btm.api.services.utils.TimeService
 import org.springframework.stereotype.Service
 import java.util.*
 
 @Service
-class TextBitsDaoJdbcImpl(
-    private val textBitsRepo: TextBitsRepository,
+class ChunksDaoJdbcImpl(
+    private val chunksRepo: ChunksRepository,
     private val randomGenerator: RandomGenerator,
     private val timeService: TimeService
-): TextBitsDao {
+): ChunksDao {
 
-    override fun findTextBit(textBitId: UUID): TextBit? = textBitsRepo.find(textBitId)
+    override fun findChunk(chunkId: UUID): Chunk? = chunksRepo.find(chunkId)
 
     override fun persist(topic: Topic, game: Game): UUID {
         val uuid = randomGenerator.uuid()
-        textBitsRepo.insert(
+        chunksRepo.insert(
             id = uuid,
             game = game,
             topic = topic,
@@ -30,6 +30,6 @@ class TextBitsDaoJdbcImpl(
         return uuid
     }
 
-    override fun delete(textBitId: UUID) = textBitsRepo.delete(textBitId)
+    override fun delete(chunkId: UUID) = chunksRepo.delete(chunkId)
 
 }
