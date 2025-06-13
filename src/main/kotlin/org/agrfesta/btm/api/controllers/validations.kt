@@ -19,7 +19,9 @@ data class ValidChunkSearchBySimilarityRequest(
     val game: Game,
     val topic: Topic,
     val text: String,
-    val language: String
+    val language: String,
+    val embeddingsLimit: Int,
+    val distanceLimit: Double
 )
 
 fun ChunksCreationRequest.validate(): Either<ValidationFailure, ValidChunksCreationRequest> =
@@ -44,8 +46,12 @@ fun ChunkSearchBySimilarityRequest.validate(): Either<ValidationFailure, ValidCh
         validText -> language.validateLanguage().flatMap {
             validLanguage -> game.validateGame().flatMap {
                 validGame -> topic.validateTopic().flatMap {
-                    validTopic ->
-                        ValidChunkSearchBySimilarityRequest(validGame, validTopic, validText, validLanguage).right()
+                    validTopic -> embeddingsLimit.validateEmbeddingsLimit().flatMap {
+                        embeddingsLimit -> distanceLimit.validateDistanceLimit().flatMap {
+                            distanceLimit -> ValidChunkSearchBySimilarityRequest(
+                                validGame, validTopic, validText, validLanguage, embeddingsLimit, distanceLimit).right()
+                        }
+                    }
                 }
             }
         }
@@ -57,6 +63,14 @@ private fun Collection<String>?.validateTranslationTexts(): Either<ValidationFai
     return if (texts.isNullOrEmpty()) ValidationFailure("No chunks to create!").left()
     else texts.right()
 }
+
+private fun Int.validateEmbeddingsLimit(): Either<ValidationFailure, Int> = if (this > 0) right()
+    else ValidationFailure("'embeddingsLimit' must be a positive Int!").left()
+
+private fun Double.validateDistanceLimit(): Either<ValidationFailure, Double> =
+    if ((this > 0.0) && (this < 2.0)) right()
+    else ValidationFailure("'distanceLimit' must be in (0.0 ; 2.0)!").left()
+
 
 private fun String?.validateLanguage(): Either<ValidationFailure, String> = if (isNullOrBlank() || length!=2) {
         ValidationFailure("Language must not be blank and two charters long!").left()

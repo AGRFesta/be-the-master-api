@@ -54,7 +54,7 @@ class EmbeddingRepository(
         game: String,
         topic: String,
         languageCode: String,
-        maxDistance: Double = 0.6
+        limit: Int
     ): List<Pair<String, Double>> {
         val sql = """
             SELECT t.text, e.vector <=> :target AS distance
@@ -65,7 +65,7 @@ class EmbeddingRepository(
               AND tb.topic = CAST(:topic AS topic_enum)
               AND t.language_code = :languageCode
             ORDER BY distance ASC
-            LIMIT 10
+            LIMIT :limit
         """.trimIndent()
 
         val params = MapSqlParameterSource(mapOf(
@@ -73,7 +73,7 @@ class EmbeddingRepository(
             "topic" to topic,
             "languageCode" to languageCode,
             "target" to PGvector(target),
-            "maxDistance" to maxDistance
+            "limit" to limit
         ))
 
         return jdbcTemplate.query(sql, params) { rs, _ ->

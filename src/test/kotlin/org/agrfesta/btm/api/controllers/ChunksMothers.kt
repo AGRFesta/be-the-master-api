@@ -65,22 +65,34 @@ fun aChunkSearchBySimilarityRequest(
     game: Game = aGame(),
     topic: Topic = aTopic(),
     language: String = aLanguage(),
-    text: String = aRandomUniqueString()
-) = ChunkSearchBySimilarityRequest(game.name, topic.name, text, language)
+    text: String = aRandomUniqueString(),
+    embeddingsLimit: Int = 1000,
+    distanceLimit: Double = 1.9
+) = ChunkSearchBySimilarityRequest(game.name, topic.name, text, language, embeddingsLimit, distanceLimit)
 
 fun aChunkSearchBySimilarityRequestJson(
-    game: String = aGame().name,
-    topic: String = aTopic().name,
-    language: String = aLanguage(),
-    text: String = aRandomUniqueString()
-) = """
-        {
-            "topic": "$topic",
-            "text": "$text",
-            "language": "$language",
-            "game": "$game"
-        }
-    """.trimIndent()
+    game: String? = aGame().name,
+    topic: String? = aTopic().name,
+    language: String? = aLanguage(),
+    text: String? = aRandomUniqueString(),
+    embeddingsLimit: Int? = null,
+    distanceLimit: Double? = null
+): String {
+    val properties = buildList {
+        game?.let { add(""""game": "$it"""") }
+        topic?.let { add(""""topic": "$topic"""") }
+        language?.let { add(""""language": "$language"""") }
+        text?.let { add(""""text": "$text"""") }
+        embeddingsLimit?.let { add(""""embeddingsLimit": $embeddingsLimit""") }
+        distanceLimit?.let { add(""""distanceLimit": $distanceLimit""") }
+    }
+
+    return properties.joinToString(
+        separator = ",\n    ",
+        prefix = "{\n    ",
+        postfix = "\n}"
+    )
+}
 
 fun ChunkSearchBySimilarityRequest.toJsonString() =
     aChunkSearchBySimilarityRequestJson(game, topic, language, text)

@@ -494,7 +494,8 @@ class ChunksControllerIntegrationTest(
         val game = aGame()
         val topic = aTopic()
         val language = aLanguage()
-        val request = aChunkSearchBySimilarityRequest(game = game, language = language, topic = topic)
+        val request = aChunkSearchBySimilarityRequestJson(
+            text = text, game = game.name, language = language, topic = topic.name, distanceLimit = 0.6)
         val targetEmbedding = aNormalizedEmbedding()
         val embeddingA = generateVectorWithDistance(targetEmbedding, 0.5)
         val embeddingB = generateVectorWithDistance(targetEmbedding, 2.0)
@@ -506,11 +507,11 @@ class ChunksControllerIntegrationTest(
         givenChunkEmbedding(game = game, language = language, topic = topic, text = "text C", embedding = embeddingC)
         givenChunkEmbedding(game = game, language = language, topic = topic, text = "text D", embedding = embeddingD)
         givenChunkEmbedding(game = game, language = language, topic = topic, text = "text E", embedding = embeddingE)
-        coEvery { embeddingsProvider.createEmbedding(request.text) } returns targetEmbedding.right()
+        coEvery { embeddingsProvider.createEmbedding(text) } returns targetEmbedding.right()
 
         val result = given()
             .contentType(ContentType.JSON)
-            .body(request.toJsonString())
+            .body(request)
             .`when`()
             .post("/chunks/similarity-search")
             .then()
@@ -525,7 +526,8 @@ class ChunksControllerIntegrationTest(
         val game = aGame()
         val topic = aTopic()
         val language = aLanguage()
-        val request = aChunkSearchBySimilarityRequest(game = game, language = language, topic = topic)
+        val request = aChunkSearchBySimilarityRequestJson(
+            text = text, game = game.name, language = language, topic = topic.name, distanceLimit = 0.6)
         val targetEmbedding = aNormalizedEmbedding()
         val embA = generateVectorWithDistance(targetEmbedding, 0.5)
         val embB = generateVectorWithDistance(targetEmbedding, 0.35)
@@ -538,11 +540,11 @@ class ChunksControllerIntegrationTest(
         givenChunkEmbedding(game = anotherGame, language = language, topic = topic, text = "text C", embedding = embC)
         givenChunkEmbedding(game = game, language = language, topic = topic, text = "text D", embedding = embD)
         givenChunkEmbedding(game = game, language = language, topic = topic, text = "text E", embedding = embE)
-        coEvery { embeddingsProvider.createEmbedding(request.text) } returns targetEmbedding.right()
+        coEvery { embeddingsProvider.createEmbedding(text) } returns targetEmbedding.right()
 
         val result = given()
             .contentType(ContentType.JSON)
-            .body(request.toJsonString())
+            .body(request)
             .`when`()
             .post("/chunks/similarity-search")
             .then()
@@ -557,7 +559,8 @@ class ChunksControllerIntegrationTest(
         val game = aGame()
         val topic = aTopic()
         val language = aLanguage()
-        val request = aChunkSearchBySimilarityRequest(game = game, language = language, topic = topic)
+        val request = aChunkSearchBySimilarityRequestJson(
+            text = text, game = game.name, language = language, topic = topic.name, distanceLimit = 0.6)
         val targetEmbedding = aNormalizedEmbedding()
         val embA = generateVectorWithDistance(targetEmbedding, 0.5)
         val embB = generateVectorWithDistance(targetEmbedding, 0.35)
@@ -570,11 +573,11 @@ class ChunksControllerIntegrationTest(
         givenChunkEmbedding(topic = anotherTopic, language = language, game = game, text = "text C", embedding = embC)
         givenChunkEmbedding(topic = topic, language = language, game = game, text = "text D", embedding = embD)
         givenChunkEmbedding(topic = topic, language = language, game = game, text = "text E", embedding = embE)
-        coEvery { embeddingsProvider.createEmbedding(request.text) } returns targetEmbedding.right()
+        coEvery { embeddingsProvider.createEmbedding(text) } returns targetEmbedding.right()
 
         val result = given()
             .contentType(ContentType.JSON)
-            .body(request.toJsonString())
+            .body(request)
             .`when`()
             .post("/chunks/similarity-search")
             .then()
@@ -589,7 +592,8 @@ class ChunksControllerIntegrationTest(
         val game = aGame()
         val topic = aTopic()
         val language = aLanguage()
-        val request = aChunkSearchBySimilarityRequest(game = game, topic = topic, language = language)
+        val request = aChunkSearchBySimilarityRequestJson(
+            text = text, game = game.name, topic = topic.name, language = language, distanceLimit = 0.6)
         val targetEmbedding = aNormalizedEmbedding()
         val embeddingA = generateVectorWithDistance(targetEmbedding, 0.5)
         val embeddingB = generateVectorWithDistance(targetEmbedding, 0.35)
@@ -602,11 +606,11 @@ class ChunksControllerIntegrationTest(
         givenChunkEmbedding(language = another, topic = topic, game = game, text = "text C", embedding = embeddingC)
         givenChunkEmbedding(language = language, topic = topic, game = game, text = "text D", embedding = embeddingD)
         givenChunkEmbedding(language = language, topic = topic, game = game, text = "text E", embedding = embeddingE)
-        coEvery { embeddingsProvider.createEmbedding(request.text) } returns targetEmbedding.right()
+        coEvery { embeddingsProvider.createEmbedding(text) } returns targetEmbedding.right()
 
         val result = given()
             .contentType(ContentType.JSON)
-            .body(request.toJsonString())
+            .body(request)
             .`when`()
             .post("/chunks/similarity-search")
             .then()
@@ -615,6 +619,76 @@ class ChunksControllerIntegrationTest(
             .`as`(object : TypeRef<List<SimilarityResultItem>>() {})
 
         result.map { it.text }.shouldContainExactly("text D", "text A", "text E")
+    }
+
+    @Test fun `similaritySearch() Ignores texts close to target but over limit by distance`() {
+        val request = aChunkSearchBySimilarityRequestJson(
+            text = text,
+            game = game.name,
+            topic = topic.name,
+            language = language,
+            embeddingsLimit = 3,
+            distanceLimit = 0.3
+        )
+        val targetEmbedding = aNormalizedEmbedding()
+        val embeddingA = generateVectorWithDistance(targetEmbedding, 0.05)
+        val embeddingB = generateVectorWithDistance(targetEmbedding, 0.02)
+        val embeddingC = generateVectorWithDistance(targetEmbedding, 0.01)
+        val embeddingD = generateVectorWithDistance(targetEmbedding, 0.03)
+        val embeddingE = generateVectorWithDistance(targetEmbedding, 0.09)
+        givenChunkEmbedding(language = language, topic = topic, game = game, text = "text A", embedding = embeddingA)
+        givenChunkEmbedding(language = language, topic = topic, game = game, text = "text B", embedding = embeddingB)
+        givenChunkEmbedding(language = language, topic = topic, game = game, text = "text C", embedding = embeddingC)
+        givenChunkEmbedding(language = language, topic = topic, game = game, text = "text D", embedding = embeddingD)
+        givenChunkEmbedding(language = language, topic = topic, game = game, text = "text E", embedding = embeddingE)
+        coEvery { embeddingsProvider.createEmbedding(text) } returns targetEmbedding.right()
+
+        val result = given()
+            .contentType(ContentType.JSON)
+            .body(request)
+            .`when`()
+            .post("/chunks/similarity-search")
+            .then()
+            .statusCode(200)
+            .extract()
+            .`as`(object : TypeRef<List<SimilarityResultItem>>() {})
+
+        result.map { it.text }.shouldContainExactly("text C", "text B", "text D")
+    }
+
+    @Test fun `similaritySearch() Ignores embeddings fetched but too far from target`() {
+        val request = aChunkSearchBySimilarityRequestJson(
+            text = text,
+            game = game.name,
+            topic = topic.name,
+            language = language,
+            embeddingsLimit = 6,
+            distanceLimit = 0.3
+        )
+        val targetEmbedding = aNormalizedEmbedding()
+        val embeddingA = generateVectorWithDistance(targetEmbedding, 0.05)
+        val embeddingB = generateVectorWithDistance(targetEmbedding, 0.32)
+        val embeddingC = generateVectorWithDistance(targetEmbedding, 0.1)
+        val embeddingD = generateVectorWithDistance(targetEmbedding, 0.53)
+        val embeddingE = generateVectorWithDistance(targetEmbedding, 0.09)
+        givenChunkEmbedding(language = language, topic = topic, game = game, text = "text A", embedding = embeddingA)
+        givenChunkEmbedding(language = language, topic = topic, game = game, text = "text B", embedding = embeddingB)
+        givenChunkEmbedding(language = language, topic = topic, game = game, text = "text C", embedding = embeddingC)
+        givenChunkEmbedding(language = language, topic = topic, game = game, text = "text D", embedding = embeddingD)
+        givenChunkEmbedding(language = language, topic = topic, game = game, text = "text E", embedding = embeddingE)
+        coEvery { embeddingsProvider.createEmbedding(text) } returns targetEmbedding.right()
+
+        val result = given()
+            .contentType(ContentType.JSON)
+            .body(request)
+            .`when`()
+            .post("/chunks/similarity-search")
+            .then()
+            .statusCode(200)
+            .extract()
+            .`as`(object : TypeRef<List<SimilarityResultItem>>() {})
+
+        result.map { it.text }.shouldContainExactly("text A", "text E", "text C")
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

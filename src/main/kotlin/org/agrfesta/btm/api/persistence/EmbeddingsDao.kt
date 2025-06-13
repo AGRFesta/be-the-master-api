@@ -16,7 +16,14 @@ interface EmbeddingsDao {
     @Deprecated("use searchBySimilarity instead")
     fun nearestChunks(game: Game, embedding: Embedding): Either<PersistenceFailure, List<String>>
 
-    fun searchBySimilarity(target: Embedding, game: Game, topic: Topic, language: String): List<Pair<String, Double>>
+    fun searchBySimilarity(
+        target: Embedding,
+        game: Game,
+        topic: Topic,
+        language: String,
+        embeddingsLimit: Int,
+        distanceLimit: Double
+    ): List<Pair<String, Double>>
 
     @Transactional
     fun deleteByTranslationId(uuid: UUID): Either<PersistenceFailure, Unit>
