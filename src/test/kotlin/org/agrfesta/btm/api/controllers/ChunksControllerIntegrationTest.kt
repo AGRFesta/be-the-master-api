@@ -5,11 +5,11 @@ import arrow.core.right
 import com.ninjasquad.springmockk.MockkBean
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContainExactly
-import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.restassured.RestAssured.given
 import io.restassured.common.mapper.TypeRef
@@ -23,11 +23,10 @@ import org.agrfesta.btm.api.model.Topic
 import org.agrfesta.btm.api.persistence.TestingChunksRepository
 import org.agrfesta.btm.api.persistence.jdbc.entities.TranslationEntity
 import org.agrfesta.btm.api.persistence.jdbc.entities.aTranslationEntity
-import org.agrfesta.btm.api.persistence.jdbc.repositories.EmbeddingRepository
 import org.agrfesta.btm.api.persistence.jdbc.repositories.ChunksRepository
+import org.agrfesta.btm.api.persistence.jdbc.repositories.EmbeddingRepository
 import org.agrfesta.btm.api.persistence.jdbc.repositories.TranslationsRepository
 import org.agrfesta.btm.api.services.EmbeddingsProvider
-import org.agrfesta.btm.api.services.utils.RandomGenerator
 import org.agrfesta.btm.api.services.utils.TimeService
 import org.agrfesta.btm.api.services.utils.toNoNanoSec
 import org.agrfesta.test.mothers.aNormalizedEmbedding
@@ -50,7 +49,6 @@ class ChunksControllerIntegrationTest(
     @Autowired private val embeddingRepo: EmbeddingRepository,
     @Autowired private val translationsRepo: TranslationsRepository,
     @Autowired @MockkBean private val embeddingsProvider: EmbeddingsProvider,
-    @Autowired @MockkBean private val randomGenerator: RandomGenerator,
     @Autowired @MockkBean private val timeService: TimeService
 ): AbstractIntegrationTest() {
 
@@ -63,31 +61,37 @@ class ChunksControllerIntegrationTest(
     private val uuid: UUID = UUID.randomUUID()
     private val now = Instant.now().toNoNanoSec()
     private val text = aRandomUniqueString()
-    private val topic = Topic.RULE
+    private val game = aGame()
+    private val topic = aTopic()
+    private val language = aLanguage()
 
     @BeforeEach
     fun defaultMockBehaviourSetup() {
-        every { randomGenerator.uuid() } returns uuid
         every { timeService.nowNoNano() } returns now
     }
 
-    ///// createChunk ////////////////////////////////////////////////////////////////////////////////////////////////
+    ///// createChunks /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    @Test fun `createChunk() Creates text bit and embeddings for translation`() {
-        val translation = aTranslation(language = "en")
-        val request = aChunkCreationRequest(translation = translation)
-        val translationEmbedding = anEmbedding()
-        val uuidList = listOf(
-            uuid,
-            UUID.randomUUID(), // translation
-            UUID.randomUUID()  // embedding
-        )
-        every { randomGenerator.uuid() } returnsMany uuidList
-        coEvery { embeddingsProvider.createEmbedding(translation.text) } returns translationEmbedding.right()
+    @Test fun `createChunks() Creates and embed all chunks when embed is true`() {
+        val textA = aRandomUniqueString()
+        val textB = aRandomUniqueString()
+        val textC = aRandomUniqueString()
+        val request = aChunksCreationRequestJson(
+            game = game.name,
+            topic = topic.name,
+            language = language,
+            embed = true,
+            texts = listOf(textA, textB, textC))
+        val embA = anEmbedding()
+        val embB = anEmbedding()
+        val embC = anEmbedding()
+        coEvery { embeddingsProvider.createEmbedding(textA) } returns embA.right()
+        coEvery { embeddingsProvider.createEmbedding(textB) } returns embB.right()
+        coEvery { embeddingsProvider.createEmbedding(textC) } returns embC.right()
 
         val result = given()
             .contentType(ContentType.JSON)
-            .body(request.toJsonString())
+            .body(request)
             .`when`()
             .post("/chunks")
             .then()
@@ -95,39 +99,55 @@ class ChunksControllerIntegrationTest(
             .extract()
             .`as`(MessageResponse::class.java)
 
-        result.message shouldBe "Text bit successfully persisted!"
-        val chunk = testChunksRepo.findById(uuid)
-        chunk.shouldNotBeNull()
-        chunk.game shouldBe request.game.name
-        chunk.topic shouldBe request.topic.name
-        chunk.createdOn shouldBe now
-        chunk.updatedOn.shouldBeNull()
+        result.message shouldBe "3 Chunks successfully persisted!"
 
-        val translations = translationsRepo.findTranslations(uuid).shouldHaveSize(1)
-        val persisted = translations.first()
-        persisted.text shouldBe translation.text
-        persisted.languageCode shouldBe translation.language
-        persisted.embeddingStatus shouldBe EMBEDDED
-        persisted.createdOn shouldBe now
-        val persistedEmbedding = embeddingRepo.findEmbeddingByTranslationId(persisted.id).shouldNotBeNull()
-        persistedEmbedding.vector.toList() shouldBe translationEmbedding.toList()
+        val tweA = testChunksRepo.getTranslationWithEmbedding(language, textA).shouldNotBeNull()
+        tweA.vector shouldBe embA
+        tweA.embeddingStatus shouldBe EMBEDDED.name
+        val chunkA = testChunksRepo.findById(tweA.chunkId).shouldNotBeNull()
+        chunkA.game shouldBe game.name
+        chunkA.topic shouldBe topic.name
+        chunkA.createdOn shouldBe now
+        chunkA.updatedOn.shouldBeNull()
+
+        val tweB = testChunksRepo.getTranslationWithEmbedding(language, textB).shouldNotBeNull()
+        tweB.vector shouldBe embB
+        tweB.embeddingStatus shouldBe EMBEDDED.name
+        val chunkB = testChunksRepo.findById(tweB.chunkId).shouldNotBeNull()
+        chunkB.game shouldBe game.name
+        chunkB.topic shouldBe topic.name
+        chunkB.createdOn shouldBe now
+        chunkB.updatedOn.shouldBeNull()
+
+        val tweC = testChunksRepo.getTranslationWithEmbedding(language, textC).shouldNotBeNull()
+        tweC.vector shouldBe embC
+        tweC.embeddingStatus shouldBe EMBEDDED.name
+        val chunkC = testChunksRepo.findById(tweC.chunkId).shouldNotBeNull()
+        chunkC.game shouldBe game.name
+        chunkC.topic shouldBe topic.name
+        chunkC.createdOn shouldBe now
+        chunkC.updatedOn.shouldBeNull()
     }
 
-    @Test fun `createChunk() Creates text bit and translations only, when inBatch is true`() {
-        val translation = aTranslation(language = "en")
-        val request = aChunkCreationRequest(
-            translation = translation,
-            inBatch = true
-        )
-        val uuidList = listOf(
-            uuid,
-            UUID.randomUUID()  // translation
-        )
-        every { randomGenerator.uuid() } returnsMany uuidList
+    @Test fun `createChunks() Ignores failures creating embeddings but mark chunk as not embedded`() {
+        val textA = aRandomUniqueString()
+        val textB = aRandomUniqueString()
+        val textC = aRandomUniqueString()
+        val request = aChunksCreationRequestJson(
+            game = game.name,
+            topic = topic.name,
+            language = language,
+            embed = true,
+            texts = listOf(textA, textB, textC))
+        val embA = anEmbedding()
+        val embC = anEmbedding()
+        coEvery { embeddingsProvider.createEmbedding(textA) } returns embA.right()
+        coEvery { embeddingsProvider.createEmbedding(textB) } returns EmbeddingCreationFailure.left()
+        coEvery { embeddingsProvider.createEmbedding(textC) } returns embC.right()
 
         val result = given()
             .contentType(ContentType.JSON)
-            .body(request.toJsonString())
+            .body(request)
             .`when`()
             .post("/chunks")
             .then()
@@ -135,31 +155,47 @@ class ChunksControllerIntegrationTest(
             .extract()
             .`as`(MessageResponse::class.java)
 
-        result.message shouldBe "Text bit successfully persisted!"
-        testChunksRepo.findById(uuid).shouldNotBeNull()
+        result.message shouldBe "3 Chunks successfully persisted!"
 
-        val translations = translationsRepo.findTranslations(uuid).shouldHaveSize(1)
-        val persisted = translations.first()
-        persisted.text shouldBe translation.text
-        persisted.languageCode shouldBe translation.language
-        persisted.embeddingStatus shouldBe UNEMBEDDED
-        persisted.createdOn shouldBe now
-        embeddingRepo.findEmbeddingByTranslationId(persisted.id).shouldBeNull()
+        val tweA = testChunksRepo.getTranslationWithEmbedding(language, textA).shouldNotBeNull()
+        tweA.vector shouldBe embA
+        tweA.embeddingStatus shouldBe EMBEDDED.name
+        testChunksRepo.findById(tweA.chunkId).shouldNotBeNull()
+
+        val tweB = testChunksRepo.getTranslationWithEmbedding(language, textB).shouldNotBeNull()
+        tweB.vector.shouldBeNull()
+        tweB.embeddingStatus shouldBe UNEMBEDDED.name
+        testChunksRepo.findById(tweB.chunkId).shouldNotBeNull()
+
+        val tweC = testChunksRepo.getTranslationWithEmbedding(language, textC).shouldNotBeNull()
+        tweC.vector shouldBe embC
+        tweC.embeddingStatus shouldBe EMBEDDED.name
+        testChunksRepo.findById(tweC.chunkId).shouldNotBeNull()
     }
 
-    @Test fun `createChunk() Creates text bit and translations only, when embedding creation fails`() {
-        val translation = aTranslation(language = "en")
-        val request = aChunkCreationRequest(translation = translation, inBatch = false)
-        val uuidList = listOf(
-            uuid,
-            UUID.randomUUID() // translation
-        )
-        every { randomGenerator.uuid() } returnsMany uuidList
-        coEvery { embeddingsProvider.createEmbedding(translation.text) } returns EmbeddingCreationFailure.left()
+    @Test fun `createChunks() Creates and embed all chunks when embed is missing`() {
+        val textA = aRandomUniqueString()
+        val textB = aRandomUniqueString()
+        val textC = aRandomUniqueString()
+        val textD = aRandomUniqueString()
+        val request = aChunksCreationRequestJson(
+            game = game.name,
+            topic = topic.name,
+            language = language,
+            embed = null,
+            texts = listOf(textA, textB, textC, textD))
+        val embA = anEmbedding()
+        val embB = anEmbedding()
+        val embC = anEmbedding()
+        val embD = anEmbedding()
+        coEvery { embeddingsProvider.createEmbedding(textA) } returns embA.right()
+        coEvery { embeddingsProvider.createEmbedding(textB) } returns embB.right()
+        coEvery { embeddingsProvider.createEmbedding(textC) } returns embC.right()
+        coEvery { embeddingsProvider.createEmbedding(textD) } returns embD.right()
 
         val result = given()
             .contentType(ContentType.JSON)
-            .body(request.toJsonString())
+            .body(request)
             .`when`()
             .post("/chunks")
             .then()
@@ -167,16 +203,113 @@ class ChunksControllerIntegrationTest(
             .extract()
             .`as`(MessageResponse::class.java)
 
-        result.message shouldBe
-                "Text bit successfully persisted! Failed embeddings creation."
-        testChunksRepo.findById(uuid).shouldNotBeNull()
-        val translations = translationsRepo.findTranslations(uuid).shouldHaveSize(1)
-        val persisted = translations.first()
-        persisted.text shouldBe translation.text
-        persisted.languageCode shouldBe translation.language
-        persisted.embeddingStatus shouldBe UNEMBEDDED
-        persisted.createdOn shouldBe now
-        embeddingRepo.findEmbeddingByTranslationId(persisted.id).shouldBeNull()
+        result.message shouldBe "4 Chunks successfully persisted!"
+
+        val tweA = testChunksRepo.getTranslationWithEmbedding(language, textA).shouldNotBeNull()
+        tweA.vector shouldBe embA
+        tweA.embeddingStatus shouldBe EMBEDDED.name
+
+        val tweB = testChunksRepo.getTranslationWithEmbedding(language, textB).shouldNotBeNull()
+        tweB.vector shouldBe embB
+        tweB.embeddingStatus shouldBe EMBEDDED.name
+
+        val tweC = testChunksRepo.getTranslationWithEmbedding(language, textC).shouldNotBeNull()
+        tweC.vector shouldBe embC
+        tweC.embeddingStatus shouldBe EMBEDDED.name
+
+        val tweD = testChunksRepo.getTranslationWithEmbedding(language, textD).shouldNotBeNull()
+        tweD.vector shouldBe embD
+        tweD.embeddingStatus shouldBe EMBEDDED.name
+
+    }
+
+    @Test fun `createChunks() Do not embed any chunk when embed is false`() {
+        val textA = aRandomUniqueString()
+        val textB = aRandomUniqueString()
+        val request = aChunksCreationRequestJson(
+            game = game.name,
+            topic = topic.name,
+            language = language,
+            embed = false,
+            texts = listOf(textA, textB))
+
+        val result = given()
+            .contentType(ContentType.JSON)
+            .body(request)
+            .`when`()
+            .post("/chunks")
+            .then()
+            .statusCode(200)
+            .extract()
+            .`as`(MessageResponse::class.java)
+
+        result.message shouldBe "2 Chunks successfully persisted!"
+        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
+
+        val tweA = testChunksRepo.getTranslationWithEmbedding(language, textA).shouldNotBeNull()
+        tweA.vector.shouldBeNull()
+        tweA.embeddingStatus shouldBe UNEMBEDDED.name
+        val chunkA = testChunksRepo.findById(tweA.chunkId).shouldNotBeNull()
+        chunkA.game shouldBe game.name
+        chunkA.topic shouldBe topic.name
+        chunkA.createdOn shouldBe now
+        chunkA.updatedOn.shouldBeNull()
+
+        val tweB = testChunksRepo.getTranslationWithEmbedding(language, textB).shouldNotBeNull()
+        tweB.vector.shouldBeNull()
+        tweB.embeddingStatus shouldBe UNEMBEDDED.name
+        val chunkB = testChunksRepo.findById(tweB.chunkId).shouldNotBeNull()
+        chunkB.game shouldBe game.name
+        chunkB.topic shouldBe topic.name
+        chunkB.createdOn shouldBe now
+        chunkB.updatedOn.shouldBeNull()
+    }
+
+    @Test fun `createChunks() Ignores blank elements in texts`() {
+        val request = aChunksCreationRequestJson(
+            game = game.name,
+            topic = topic.name,
+            language = language,
+            embed = false,
+            texts = listOf("", text, " ", "  "))
+
+        val result = given()
+            .contentType(ContentType.JSON)
+            .body(request)
+            .`when`()
+            .post("/chunks")
+            .then()
+            .statusCode(200)
+            .extract()
+            .`as`(MessageResponse::class.java)
+
+        result.message shouldBe "1 Chunks successfully persisted!"
+        testChunksRepo.getTranslationWithEmbedding(language, text).shouldNotBeNull()
+    }
+
+    @Test fun `createChunks() Ignores duplicate elements in texts`() {
+        val textA = aRandomUniqueString()
+        val textB = aRandomUniqueString()
+        val request = aChunksCreationRequestJson(
+            game = game.name,
+            topic = topic.name,
+            language = language,
+            embed = false,
+            texts = listOf("", textA, textB, textB, "  ", textB, textA))
+
+        val result = given()
+            .contentType(ContentType.JSON)
+            .body(request)
+            .`when`()
+            .post("/chunks")
+            .then()
+            .statusCode(200)
+            .extract()
+            .`as`(MessageResponse::class.java)
+
+        result.message shouldBe "2 Chunks successfully persisted!"
+        testChunksRepo.getTranslationWithEmbedding(language, textB).shouldNotBeNull()
+        testChunksRepo.getTranslationWithEmbedding(language, textA).shouldNotBeNull()
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -239,7 +372,6 @@ class ChunksControllerIntegrationTest(
         dynamicTest(" -> '$it'") {
             val uuid: UUID = UUID.randomUUID()
             chunksRepo.insert(uuid, Game.MAUSRITTER, topic, now)
-            every { randomGenerator.uuid() } returns UUID.randomUUID()
             val embedding = anEmbedding()
             coEvery { embeddingsProvider.createEmbedding(text) } returns embedding.right()
 

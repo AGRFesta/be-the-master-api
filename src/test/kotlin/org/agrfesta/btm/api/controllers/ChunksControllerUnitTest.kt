@@ -11,14 +11,12 @@ import io.mockk.every
 import io.mockk.verify
 import org.agrfesta.btm.api.model.EmbeddingCreationFailure
 import org.agrfesta.btm.api.model.EmbeddingStatus.EMBEDDED
-import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.model.PersistenceFailure
-import org.agrfesta.btm.api.model.Topic
-import org.agrfesta.btm.api.persistence.EmbeddingsDao
 import org.agrfesta.btm.api.persistence.ChunksDao
+import org.agrfesta.btm.api.persistence.EmbeddingsDao
 import org.agrfesta.btm.api.persistence.TranslationsDao
-import org.agrfesta.btm.api.services.EmbeddingsProvider
 import org.agrfesta.btm.api.services.ChunksService
+import org.agrfesta.btm.api.services.EmbeddingsProvider
 import org.agrfesta.test.mothers.aRandomUniqueString
 import org.agrfesta.test.mothers.anEmbedding
 import org.junit.jupiter.api.DynamicTest.dynamicTest
@@ -46,77 +44,209 @@ class ChunksControllerUnitTest(
     @Autowired @MockkBean private val translationsDao: TranslationsDao,
     @Autowired @MockkBean private val embeddingsProvider: EmbeddingsProvider
 ) {
-    private val game = Game.MAUSRITTER
-    private val topic = Topic.RULE
+    private val game = aGame()
+    private val topic = aTopic()
+    private val language = aLanguage()
     private val uuid = UUID.randomUUID()
 
-    ///// createChunk ////////////////////////////////////////////////////////////////////////////////////////////////
+    ///// createChunks /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    @Test fun `createChunk() Returns 500 when creation fails`() {
-        every { chunksDao.persist(topic, game) } throws Exception("creation failure")
+    @Test fun `createChunks() Returns 400 when texts is empty`() {
         val responseBody: String = mockMvc.perform(
             post("/chunks")
                 .contentType("application/json")
-                .content(aChunkCreationRequest(topic = topic, game = game).toJsonString()))
-            .andExpect(status().isInternalServerError)
+                .content(aChunksCreationRequestJson(texts = listOf("", " ", "  "))))
+            .andExpect(status().isBadRequest)
             .andReturn().response.contentAsString
 
         coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
         asserter.verifyNoTranslationsPersisted()
         asserter.verifyNoEmbeddingsPersisted()
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-        response.message shouldBe "Unable to create text bit!"
+        response.message shouldBe "No chunks to create!"
     }
 
-    @Test fun `createChunk() Creates text bit and translations only, when fails to persist embedding`() {
-        val translation = aTranslation(language = "en")
-        val request = aChunkCreationRequest(
-            topic = topic, game = game,
-            translation = translation
-        )
-        val translationEmbedding = anEmbedding()
-        val translationId = UUID.randomUUID()
-        every { chunksDao.persist(topic, game) } returns uuid
-        every { translationsDao.persist(uuid, translation) } returns translationId
-        coEvery { embeddingsProvider.createEmbedding(translation.text) } returns translationEmbedding.right()
-        every { embeddingsDao.persist(translationId, translationEmbedding) } returns
-                PersistenceFailure("embedding persistence failure").left()
+    @TestFactory
+    fun `createChunks() Returns 400 when language is not valid`() = listOf(null, "", " ", "  ", "i", "ita").map {
+        dynamicTest(" -> '$it'") {
+            val request = aChunksCreationRequestJson(language = it)
+            val responseBody: String = mockMvc.perform(
+                post("/chunks")
+                    .contentType("application/json")
+                    .content(request))
+                .andExpect(status().isBadRequest)
+                .andReturn().response.contentAsString
+
+            coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
+            asserter.verifyNoTranslationsPersisted()
+            asserter.verifyNoEmbeddingsPersisted()
+            val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+            response.message shouldBe "Language must not be blank and two charters long!"
+        }
+    }
+
+    @TestFactory
+    fun `createChunks() Returns 400 when game is missing`() = listOf("", null).map {
+            dynamicTest(" -> '$it'") {
+                val requestJson = aChunksCreationRequestJson(game = it)
+                val responseBody: String = mockMvc.perform(
+                    post("/chunks")
+                        .contentType("application/json")
+                        .content(requestJson))
+                    .andExpect(status().isBadRequest)
+                    .andReturn().response.contentAsString
+
+                coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
+                asserter.verifyNoTranslationsPersisted()
+                asserter.verifyNoEmbeddingsPersisted()
+                val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+                response.message shouldBe "Game is missing!"
+            }
+        }
+
+    @Test fun `createChunks() Returns 400 when game is not valid`() {
+        val requestJson = aChunksCreationRequestJson(game = aRandomUniqueString())
+        val responseBody: String = mockMvc.perform(
+            post("/chunks")
+                .contentType("application/json")
+                .content(requestJson))
+            .andExpect(status().isBadRequest)
+            .andReturn().response.contentAsString
+
+        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
+        asserter.verifyNoTranslationsPersisted()
+        asserter.verifyNoEmbeddingsPersisted()
+        val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+        response.message shouldBe "Game is not valid!"
+    }
+
+    @TestFactory
+    fun `createChunks() Returns 400 when topic is missing`() = listOf("", null).map {
+        dynamicTest(" -> '$it'") {
+            val requestJson = aChunksCreationRequestJson(topic = it)
+            val responseBody: String = mockMvc.perform(
+                post("/chunks")
+                    .contentType("application/json")
+                    .content(requestJson))
+                .andExpect(status().isBadRequest)
+                .andReturn().response.contentAsString
+
+            coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
+            asserter.verifyNoTranslationsPersisted()
+            asserter.verifyNoEmbeddingsPersisted()
+            val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+            response.message shouldBe "Topic is missing!"
+        }
+    }
+
+    @Test fun `createChunks() Returns 400 when topic is not valid`() {
+        val requestJson = aChunksCreationRequestJson(topic = aRandomUniqueString())
+        val responseBody: String = mockMvc.perform(
+            post("/chunks")
+                .contentType("application/json")
+                .content(requestJson))
+            .andExpect(status().isBadRequest)
+            .andReturn().response.contentAsString
+
+        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
+        asserter.verifyNoTranslationsPersisted()
+        asserter.verifyNoEmbeddingsPersisted()
+        val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+        response.message shouldBe "Topic is not valid!"
+    }
+
+    @Test fun `createChunks() Ignores failures persisting embeddings but mark chunk as not embedded`() {
+        val cA = UUID.randomUUID()
+        val cB = UUID.randomUUID()
+        val cC = UUID.randomUUID()
+        every { chunksDao.persist(topic, game) } returnsMany listOf(cA, cB, cC)
+        val textA = aRandomUniqueString()
+        val textB = aRandomUniqueString()
+        val textC = aRandomUniqueString()
+        val embA = anEmbedding()
+        val embB = anEmbedding()
+        val embC = anEmbedding()
+        coEvery { embeddingsProvider.createEmbedding(textA) } returns embA.right()
+        coEvery { embeddingsProvider.createEmbedding(textB) } returns embB.right()
+        coEvery { embeddingsProvider.createEmbedding(textC) } returns embC.right()
+        val tA = UUID.randomUUID()
+        val tB = UUID.randomUUID()
+        val tC = UUID.randomUUID()
+        every { translationsDao.addOrReplace(cA, language, textA) } returns tA
+        every { translationsDao.addOrReplace(cB, language, textB) } returns tB
+        every { translationsDao.addOrReplace(cC, language, textC) } returns tC
+        every { embeddingsDao.persist(tA, embA) } returns UUID.randomUUID().right()
+        every { embeddingsDao.persist(tB, embB) } returns PersistenceFailure(aRandomUniqueString()).left()
+        every { embeddingsDao.persist(tC, embC) } returns UUID.randomUUID().right()
+        every { translationsDao.setEmbeddingStatus(tA, EMBEDDED) } returns Unit
+        every { translationsDao.setEmbeddingStatus(tC, EMBEDDED) } returns Unit
 
         val responseBody: String = mockMvc.perform(
             post("/chunks")
                 .contentType("application/json")
-                .content(request.toJsonString()))
+                .content(aChunksCreationRequestJson(
+                    game = game.name,
+                    topic = topic.name,
+                    language = language,
+                    texts = listOf(textA, textB, textC))))
             .andExpect(status().isOk)
             .andReturn().response.contentAsString
 
+        coVerify(exactly = 3) { embeddingsProvider.createEmbedding(any()) }
+        verify(exactly = 3) { translationsDao.addOrReplace(any(), any(), any()) }
+        verify(exactly = 2) { translationsDao.setEmbeddingStatus(any(), EMBEDDED) }
+        verify { translationsDao.setEmbeddingStatus(tA, EMBEDDED) }
+        verify { translationsDao.setEmbeddingStatus(tC, EMBEDDED) }
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-        response.message shouldBe
-                "Text bit successfully persisted! Failed embeddings creation."
-        verify(exactly = 0) { translationsDao.setEmbeddingStatus(translationId, EMBEDDED) }
+        response.message shouldBe "3 Chunks successfully persisted!"
     }
 
-    // TODO what happen when setEmbeddingStatus fails? (Should rollback embedding creation) or (just remove that column)
+    @Test fun `createChunks() Ignores failures persisting chunks`() {
+        val textA = aRandomUniqueString()
+        val textB = aRandomUniqueString()
+        val textC = aRandomUniqueString()
+        val cA = UUID.randomUUID()
+        val cC = UUID.randomUUID()
+        every { chunksDao.persist(topic, game) } returns cA andThenThrows Exception("failure") andThen cC
+        val embA = anEmbedding()
+        val embC = anEmbedding()
+        coEvery { embeddingsProvider.createEmbedding(textA) } returns embA.right()
+        coEvery { embeddingsProvider.createEmbedding(textC) } returns embC.right()
+        val tA = UUID.randomUUID()
+        val tC = UUID.randomUUID()
+        every { translationsDao.addOrReplace(cA, language, textA) } returns tA
+        every { translationsDao.addOrReplace(cC, language, textC) } returns tC
+        every { embeddingsDao.persist(tA, embA) } returns UUID.randomUUID().right()
+        every { embeddingsDao.persist(tC, embC) } returns UUID.randomUUID().right()
+        every { translationsDao.setEmbeddingStatus(tA, EMBEDDED) } returns Unit
+        every { translationsDao.setEmbeddingStatus(tC, EMBEDDED) } returns Unit
 
-    @TestFactory
-    fun `createChunk() returns 400 when original text is empty`() = listOf("", " ", "  ", "    ").map {
-        dynamicTest(" -> '$it'") {
-            val responseBody: String = mockMvc.perform(
-                post("/chunks")
-                    .contentType("application/json")
-                    .content(aChunkCreationRequest(translation = aTranslation(text = it)).toJsonString()))
-                .andExpect(status().isBadRequest)
-                .andReturn().response.contentAsString
+        val responseBody: String = mockMvc.perform(
+            post("/chunks")
+                .contentType("application/json")
+                .content(aChunksCreationRequestJson(
+                    game = game.name,
+                    topic = topic.name,
+                    language = language,
+                    texts = listOf(textA, textB, textC))))
+            .andExpect(status().isOk)
+            .andReturn().response.contentAsString
 
-            verify(exactly = 0) { chunksDao.persist(any(), any()) }
-            coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
-            verify(exactly = 0) { embeddingsDao.persist(any(), any()) }
-            verify(exactly = 0) { translationsDao.setEmbeddingStatus(any(), any()) }
-            val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-            response.message shouldBe "Text must not be empty!"
-        }
+        coVerify(exactly = 2) { embeddingsProvider.createEmbedding(any()) }
+        coVerify { embeddingsProvider.createEmbedding(textA) }
+        coVerify { embeddingsProvider.createEmbedding(textC) }
+        verify(exactly = 2) { translationsDao.addOrReplace(any(), any(), any()) }
+        verify { translationsDao.addOrReplace(cA, language, textA) }
+        verify { translationsDao.addOrReplace(cC, language, textC) }
+        verify(exactly = 2) { translationsDao.setEmbeddingStatus(any(), EMBEDDED) }
+        verify { translationsDao.setEmbeddingStatus(tA, EMBEDDED) }
+        verify { translationsDao.setEmbeddingStatus(tC, EMBEDDED) }
+        val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+        response.message shouldBe "3 Chunks successfully persisted!"
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
     ///// update ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -211,13 +341,27 @@ class ChunksControllerUnitTest(
 
             verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any()) }
             val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-            response.message shouldBe "Language must not be blank and two charters length!"
+            response.message shouldBe "Language must not be blank and two charters long!"
         }
     }
 
+    @Test fun `similaritySearch() Returns 400 when Game is not valid`() {
+        val requestJson = aChunkSearchBySimilarityRequestJson(game = aRandomUniqueString())
+        val responseBody: String = mockMvc.perform(
+            post("/chunks/similarity-search")
+                .contentType("application/json")
+                .content(requestJson))
+            .andExpect(status().isBadRequest)
+            .andReturn().response.contentAsString
+
+        verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any()) }
+        val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+        response.message shouldBe "Game is not valid!"
+    }
+
     @TestFactory
-    fun `similaritySearch() returns 400 when Game is not valid`() =
-        listOf("", " ", "  ", "    ", aRandomUniqueString()).map {
+    fun `similaritySearch() returns 400 when Game is missing`() =
+        listOf("").map { //TODO add null case
             dynamicTest(" -> '$it'") {
                 val requestJson = aChunkSearchBySimilarityRequestJson(game = it)
                 val responseBody: String = mockMvc.perform(
@@ -229,13 +373,27 @@ class ChunksControllerUnitTest(
 
                 verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any()) }
                 val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-                response.message shouldBe "Game is not valid!"
+                response.message shouldBe "Game is missing!"
             }
         }
 
+    @Test fun `similaritySearch() Returns 400 when Topic is not valid`() {
+        val requestJson = aChunkSearchBySimilarityRequestJson(topic = aRandomUniqueString())
+        val responseBody: String = mockMvc.perform(
+            post("/chunks/similarity-search")
+                .contentType("application/json")
+                .content(requestJson))
+            .andExpect(status().isBadRequest)
+            .andReturn().response.contentAsString
+
+        verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any()) }
+        val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+        response.message shouldBe "Topic is not valid!"
+    }
+
     @TestFactory
-    fun `similaritySearch() returns 400 when Topic is not valid`() =
-        listOf("", " ", "  ", "    ", aRandomUniqueString()).map {
+    fun `similaritySearch() returns 400 when Topic is missing`() =
+        listOf("").map { //TODO add null case
             dynamicTest(" -> '$it'") {
                 val requestJson = aChunkSearchBySimilarityRequestJson(topic = it)
                 val responseBody: String = mockMvc.perform(
@@ -247,7 +405,7 @@ class ChunksControllerUnitTest(
 
                 verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any()) }
                 val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-                response.message shouldBe "Topic is not valid!"
+                response.message shouldBe "Topic is missing!"
             }
         }
 

@@ -2,18 +2,19 @@ package org.agrfesta.btm.api.controllers
 
 import arrow.core.Either.Left
 import arrow.core.Either.Right
+import arrow.core.flatMap
+import arrow.core.right
 import kotlinx.coroutines.runBlocking
 import org.agrfesta.btm.api.model.Embedding
 import org.agrfesta.btm.api.model.EmbeddingCreationFailure
 import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.model.PersistenceFailure
-import org.agrfesta.btm.api.model.Chunk
 import org.agrfesta.btm.api.model.Topic
 import org.agrfesta.btm.api.model.Translation
+import org.agrfesta.btm.api.model.ValidationFailure
+import org.agrfesta.btm.api.services.ChunksService
 import org.agrfesta.btm.api.services.Embedder
 import org.agrfesta.btm.api.services.EmbeddingsProvider
-import org.agrfesta.btm.api.services.ChunksService
-import org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR
 import org.springframework.http.ResponseEntity
 import org.springframework.http.ResponseEntity.badRequest
 import org.springframework.http.ResponseEntity.internalServerError
@@ -50,31 +51,23 @@ class ChunksController(
      *         or 500 if persistence fails.
      */
     @PostMapping
-    fun createChunk(@RequestBody request: ChunkCreationRequest): ResponseEntity<Any> {
-        if (request.translation.text.isBlank()) {
-            return badRequest().body(MessageResponse("Text must not be empty!"))
-        }
-        val chunk = try {
-            request.toChunk()
-        } catch (e: IllegalArgumentException) {
-            return badRequest().body(MessageResponse(e.message ?: "no message"))
-        }
-
-        when (val insertResult = chunksService.createChunk(request.game, request.topic)) {
-            is Left -> return status(INTERNAL_SERVER_ERROR).body(MessageResponse("Unable to create text bit!"))
-            is Right -> {
-                val chunkId = insertResult.value
-                val languageFailures = mutableSetOf<String>()
-                request.translation.persist(chunkId, request.inBatch, languageFailures)
-//                chunk.translations.forEach {
-//                    it.persist(chunkId, request.inBatch, languageFailures)
-//                }
-                val warning = if (languageFailures.isEmpty()) ""
-                else " Failed embeddings creation."
-                return ok().body(MessageResponse("Text bit successfully persisted!$warning"))
+    fun createChunks(@RequestBody request: ChunksCreationRequest): ResponseEntity<Any> = request.validate()
+        .flatMap { valid ->
+            valid.texts.forEach {
+                when (val insertResult = chunksService.createChunk(valid.game, valid.topic)) {
+                    is Left -> {/* for the moment ignores it, but we should implement a retry queue */}
+                    is Right -> {
+                        val chunkId = insertResult.value
+                        chunksService.replaceTranslation(chunkId, valid.language, it,
+                            if (request.embed != false) embedder else null)
+                    }
+                }
             }
-        }
-    }
+            "${valid.texts.size} Chunks successfully persisted!".right()
+        }.fold(
+            ifLeft = { badRequest().body(MessageResponse(it.message)) },
+            ifRight = { ok().body(MessageResponse(it)) }
+        )
 
     /**
      * PATCH /chunks/{id}
@@ -98,21 +91,23 @@ class ChunksController(
             return internalServerError()
                 .body(MessageResponse("Unable to fetch text bit!"))
         }
-
-        return when(val result = chunksService.replaceTranslation(
+        return chunksService.replaceTranslation(
             chunk.id,
             request.language,
             request.text,
-            if (request.inBatch) null else embedder)
-        ) {
-            is Left -> when(result.value) {
-                EmbeddingCreationFailure -> ok()
-                    .body(MessageResponse("Text bit $id successfully patched! But embedding creation failed!"))
-                is PersistenceFailure -> internalServerError()
-                    .body(MessageResponse("Unable to replace text bit $id!"))
-            }
-            is Right -> ok().body(MessageResponse("Text bit $id successfully patched!"))
-        }
+            if (request.inBatch) null else embedder
+        ).fold(
+             ifLeft = {
+                 when(it) {
+                     EmbeddingCreationFailure -> ok()
+                         .body(MessageResponse("Text bit $id successfully patched! But embedding creation failed!"))
+                     is PersistenceFailure -> internalServerError()
+                         .body(MessageResponse("Unable to replace text bit $id!"))
+                     is ValidationFailure -> TODO()
+                 }
+             },
+             ifRight = { ok().body(MessageResponse("Text bit $id successfully patched!")) }
+         )
     }
 
     /**
@@ -124,64 +119,41 @@ class ChunksController(
      * @return 200 OK with list of similar Text Bits, or appropriate error responses.
      */
     @PostMapping("/similarity-search")
-    fun similaritySearch(@RequestBody request: ChunkSearchBySimilarityRequest): ResponseEntity<Any> {
-        if (request.text.isBlank()) {
-            return badRequest().body(MessageResponse("Text must not be blank!"))
-        }
-        if (request.language.isBlank() || request.language.length != 2) {
-            return badRequest().body(MessageResponse("Language must not be blank and two charters length!"))
-        }
-        val game = try {
-            Game.valueOf(request.game)
-        } catch (e: IllegalArgumentException) {
-            return badRequest().body(MessageResponse("Game is not valid!"))
-        }
-        val topic = try {
-            Topic.valueOf(request.topic)
-        } catch (e: IllegalArgumentException) {
-            return badRequest().body(MessageResponse("Topic is not valid!"))
-        }
-       return when(val result = chunksService
-           .searchBySimilarity(request.text, game, topic, request.language, embedder)) {
-                is Left -> when(result.value) {
+    fun similaritySearch(@RequestBody request: ChunkSearchBySimilarityRequest): ResponseEntity<Any> = request.validate()
+        .flatMap { valid ->
+            chunksService.searchBySimilarity(
+                valid.text, valid.game, valid.topic, valid.language, embedder).flatMap { result ->
+                    result.map { it.toSimilarityResultItem() }.right()
+                }
+        }.fold(
+            ifLeft = {
+                when(it) {
                     EmbeddingCreationFailure -> internalServerError()
                         .body(MessageResponse("Unable to create target embedding!"))
                     is PersistenceFailure -> internalServerError()
                         .body(MessageResponse("Unable to fetch embeddings!"))
+                    is ValidationFailure -> badRequest().body(MessageResponse(it.message))
                 }
-                is Right -> ok().body(result.value.map { it.toSimilarityResultItem() })
-            }
-    }
-
-    private fun Translation.persist(
-        chunkId: UUID,
-        inBatch: Boolean,
-        languageFailures: MutableSet<String>
-    ) {
-        chunksService.persistTranslation(
-            this,
-            chunkId,
-            if (inBatch) null else embedder
-        ).onLeft {
-            languageFailures.add(language)
-        }
-    }
+            },
+            ifRight = { ok().body(it) }
+        )
 
 }
+
+data class ChunksCreationRequest(
+    val game: String?,
+    val topic: String?,
+    val language: String?,
+    val texts: List<String>?,
+    val embed: Boolean?
+)
 
 data class ChunkCreationRequest(
     val game: Game,
     val topic: Topic,
     val translation: Translation,
     val inBatch: Boolean = false
-) {
-    fun toChunk() = Chunk(
-        id = UUID.randomUUID(),
-        game = game,
-        topic = topic,
-        translations = setOf(translation)
-    )
-}
+)
 
 data class ChunkTranslationPatchRequest(
     val text: String,
