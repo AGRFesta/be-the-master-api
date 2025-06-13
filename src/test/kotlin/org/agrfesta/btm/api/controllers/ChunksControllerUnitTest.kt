@@ -270,9 +270,9 @@ class ChunksControllerUnitTest(
         }
     }
 
-    @Test fun `update() Returns 500 when fails to fetch text bit`() {
+    @Test fun `update() Returns 500 when fails to fetch chunk`() {
         val request = aChunkTranslationsPatchRequest()
-        every { chunksDao.findChunk(uuid) } throws Exception("text bit fetch failure")
+        every { chunksDao.findChunk(uuid) } throws Exception("chunk fetch failure")
         val responseBody: String = mockMvc.perform(
             patch("/chunks/$uuid")
                 .contentType("application/json")
@@ -284,7 +284,7 @@ class ChunksControllerUnitTest(
         verify(exactly = 0) { embeddingsDao.persist(any(), any()) }
         verify(exactly = 0) { translationsDao.setEmbeddingStatus(any(), any()) }
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-        response.message shouldBe "Unable to fetch text bit!"
+        response.message shouldBe "Unable to fetch chunk!"
     }
 
     @Test fun `update() Returns 500 when embedding removal fails`() {
@@ -304,7 +304,7 @@ class ChunksControllerUnitTest(
         verify(exactly = 0) { embeddingsDao.persist(any(), any()) }
         verify(exactly = 0) { translationsDao.setEmbeddingStatus(any(), any()) }
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-        response.message shouldBe "Unable to replace text bit $uuid!"
+        response.message shouldBe "Unable to replace chunk $uuid!"
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

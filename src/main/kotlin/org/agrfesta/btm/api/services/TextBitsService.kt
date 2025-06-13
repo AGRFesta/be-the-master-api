@@ -46,7 +46,7 @@ class ChunksService(
     fun createChunk(game: Game, topic: Topic): Either<BtmFlowFailure, UUID> = try {
         chunksDao.persist(topic, game).right()
     } catch (e: Exception) {
-        PersistenceFailure("Text bit persistence failure!", e).left()
+        PersistenceFailure("Chunk persistence failure!", e).left()
     }
 
     /**

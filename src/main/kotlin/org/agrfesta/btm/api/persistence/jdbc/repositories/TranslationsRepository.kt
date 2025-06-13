@@ -17,7 +17,7 @@ class TranslationsRepository(
         val sql = """
         INSERT INTO btm.translations (
             id,
-            text_bit_id,
+            chunk_id,
             language_code,
             text,
             embedding_status,
@@ -48,13 +48,13 @@ class TranslationsRepository(
         val sql = """
             SELECT 
                 id,
-                text_bit_id,
+                chunk_id,
                 language_code,
                 text,
                 embedding_status,
                 created_on
             FROM btm.translations
-            WHERE text_bit_id = :chunkId
+            WHERE chunk_id = :chunkId
             and language_code = :language
         """.trimIndent()
 
@@ -64,7 +64,7 @@ class TranslationsRepository(
             jdbcTemplate.queryForObject(sql, params) { rs, _ ->
                 TranslationEntity(
                     id = UUID.fromString(rs.getString("id")),
-                    chunkId = UUID.fromString(rs.getString("text_bit_id")),
+                    chunkId = UUID.fromString(rs.getString("chunk_id")),
                     languageCode = rs.getString("language_code"),
                     text = rs.getString("text"),
                     embeddingStatus = EmbeddingStatus.valueOf(rs.getString("embedding_status")),
@@ -81,13 +81,13 @@ class TranslationsRepository(
         val sql = """
             SELECT 
                 id,
-                text_bit_id,
+                chunk_id,
                 language_code,
                 text,
                 embedding_status,
                 created_on
             FROM btm.translations
-            WHERE text_bit_id = :chunkId
+            WHERE chunk_id = :chunkId
         """.trimIndent()
 
         val params = mapOf("chunkId" to chunkId)
@@ -95,7 +95,7 @@ class TranslationsRepository(
         return jdbcTemplate.query(sql, params) { rs, _ ->
             TranslationEntity(
                 id = UUID.fromString(rs.getString("id")),
-                chunkId = UUID.fromString(rs.getString("text_bit_id")),
+                chunkId = UUID.fromString(rs.getString("chunk_id")),
                 languageCode = rs.getString("language_code"),
                 text = rs.getString("text"),
                 embeddingStatus = EmbeddingStatus.valueOf(rs.getString("embedding_status")),

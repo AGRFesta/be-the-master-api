@@ -32,7 +32,7 @@ class TestingChunksRepository(
             t.text,
             t.language_code,
             t.embedding_status,
-            t.text_bit_id,
+            t.chunk_id,
             e.id AS embedding_id,
             e.vector,
             e.created_on AS embedding_created_on
@@ -64,7 +64,7 @@ object TranslationWithEmbeddingRowMapper: RowMapper<TranslationWithEmbedding> {
         val pgVec = rs.getObject("vector") as? PGvector
         return TranslationWithEmbedding(
             translationId = UUID.fromString(rs.getString("translation_id")),
-            chunkId = UUID.fromString(rs.getString("text_bit_id")),
+            chunkId = UUID.fromString(rs.getString("chunk_id")),
             text = rs.getString("text"),
             languageCode = rs.getString("language_code"),
             embeddingStatus = rs.getString("embedding_status"),

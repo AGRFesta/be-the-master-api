@@ -316,7 +316,7 @@ class ChunksControllerIntegrationTest(
 
     ///// update ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    @Test fun `update() Returns 404 when text bit is missing`() {
+    @Test fun `update() Returns 404 when chunk is missing`() {
         testChunksRepo.findById(uuid).shouldBeNull()
 
         val result = given()
@@ -329,7 +329,7 @@ class ChunksControllerIntegrationTest(
             .extract()
             .`as`(MessageResponse::class.java)
 
-        result.message shouldBe "Text bit $uuid is missing!"
+        result.message shouldBe "Chunk $uuid is missing!"
         testChunksRepo.findById(uuid).shouldBeNull()
     }
 
@@ -355,7 +355,7 @@ class ChunksControllerIntegrationTest(
             .extract()
             .`as`(MessageResponse::class.java)
 
-        result.message shouldBe "Text bit $uuid successfully patched!"
+        result.message shouldBe "Chunk $uuid successfully patched!"
         val translation = translationsRepo.findTranslationByLanguage(uuid, request.language).shouldNotBeNull()
         translation.embeddingStatus shouldBe UNEMBEDDED
         translation.text shouldBe request.text
@@ -385,7 +385,7 @@ class ChunksControllerIntegrationTest(
                 .extract()
                 .`as`(MessageResponse::class.java)
 
-            result.message shouldBe "Text bit $uuid successfully patched!"
+            result.message shouldBe "Chunk $uuid successfully patched!"
             val translation = translationsRepo.findTranslationByLanguage(uuid, "it").shouldNotBeNull()
             translation.embeddingStatus shouldBe EMBEDDED
             translation.text shouldBe text
@@ -394,7 +394,7 @@ class ChunksControllerIntegrationTest(
         }
     }
 
-    @Test fun `update() Replace text bit text and embedding when inBatch is false`() {
+    @Test fun `update() Replace chunk text and embedding when inBatch is false`() {
         val originalText = aRandomUniqueString()
         val embedding = anEmbedding()
         val newEmbedding = anEmbedding()
@@ -424,7 +424,7 @@ class ChunksControllerIntegrationTest(
             .extract()
             .`as`(MessageResponse::class.java)
 
-        result.message shouldBe "Text bit $uuid successfully patched!"
+        result.message shouldBe "Chunk $uuid successfully patched!"
         val translation = translationsRepo.findTranslationByLanguage(uuid, request.language).shouldNotBeNull()
         translation.embeddingStatus shouldBe EMBEDDED
         translation.text shouldBe request.text
@@ -461,7 +461,7 @@ class ChunksControllerIntegrationTest(
             .extract()
             .`as`(MessageResponse::class.java)
 
-        result.message shouldBe "Text bit $uuid successfully patched! But embedding creation failed!"
+        result.message shouldBe "Chunk $uuid successfully patched! But embedding creation failed!"
         val translation = translationsRepo.findTranslationByLanguage(uuid, request.language).shouldNotBeNull()
         translation.embeddingStatus shouldBe UNEMBEDDED
         translation.text shouldBe request.text
@@ -472,7 +472,7 @@ class ChunksControllerIntegrationTest(
 
     ///// similaritySearch /////////////////////////////////////////////////////////////////////////////////////////////
 
-    @Test fun `similaritySearch() Returns empty list when there are no text bits`() {
+    @Test fun `similaritySearch() Returns empty list when there are no chunks`() {
         val request = aChunkSearchBySimilarityRequest()
         val targetEmbedding = anEmbedding()
         coEvery { embeddingsProvider.createEmbedding(request.text) } returns targetEmbedding.right()
@@ -490,7 +490,7 @@ class ChunksControllerIntegrationTest(
         result.shouldBeEmpty()
     }
 
-    @Test fun `similaritySearch() Returns similar text bits only, sorted by descending similarity`() {
+    @Test fun `similaritySearch() Returns similar chunks only, sorted by descending similarity`() {
         val game = aGame()
         val topic = aTopic()
         val language = aLanguage()

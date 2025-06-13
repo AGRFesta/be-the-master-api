@@ -29,17 +29,17 @@ CREATE TYPE topic_enum AS ENUM (
 -- Stores atomic pieces of game text with topic classification
 CREATE TABLE btm.chunks (
     id UUID PRIMARY KEY,                      -- Unique identifier
-    game game_enum NOT NULL,                  -- Game this text bit belongs to
+    game game_enum NOT NULL,                  -- Game this chunk belongs to
     topic topic_enum NOT NULL DEFAULT 'RULE', -- Type of content (rule, lore, etc.)
     created_on TIMESTAMP NOT NULL,            -- Creation timestamp
     updated_on TIMESTAMP                      -- Last update timestamp (nullable)
 );
 
 -- Table: translations
--- Stores multilingual versions of each text bit
+-- Stores multilingual versions of each chunk
 CREATE TABLE btm.translations (
     id UUID PRIMARY KEY,                                  -- Unique identifier
-    text_bit_id UUID NOT NULL REFERENCES btm.chunks(id) ON DELETE CASCADE,
+    chunk_id UUID NOT NULL REFERENCES btm.chunks(id) ON DELETE CASCADE,
     language_code TEXT NOT NULL,                          -- ISO code (e.g., 'en', 'it')
     text TEXT NOT NULL,                                   -- The actual translated text
     embedding_status embedding_status_enum NOT NULL DEFAULT 'UNEMBEDDED',

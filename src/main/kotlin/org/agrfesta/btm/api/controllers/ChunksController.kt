@@ -44,7 +44,7 @@ class ChunksController(
     /**
      * POST /chunks
      *
-     * Creates a new text bit with a translation for a given game and topic.
+     * Creates a new chunk with a translation for a given game and topic.
      *
      * @param request the [ChunkCreationRequest] containing game, topic, translation, and batch flag.
      * @return 200 OK if successful (with optional embedding warning), 400 if input is invalid,
@@ -74,10 +74,10 @@ class ChunksController(
      *
      * Replaces an existing translation of a Text Bit with new text content.
      *
-     * @param id the UUID of the text bit to update
+     * @param id the UUID of the chunk to update
      * @param request the [ChunkTranslationPatchRequest] containing updated text, language, and batch flag
      * @return 200 OK if successful, possibly with embedding failure warning,
-     *         400 if input is invalid, 404 if bit not found, or 500 on error
+     *         400 if input is invalid, 404 if chunk not found, or 500 on error
      */
     @PatchMapping("/{id}")
     fun update(@PathVariable id: UUID, @RequestBody request: ChunkTranslationPatchRequest): ResponseEntity<Any> {
@@ -86,10 +86,10 @@ class ChunksController(
         }
         val chunk = try {
             chunksService.findChunk(id)
-                ?: return status(404).body(MessageResponse("Text bit $id is missing!"))
+                ?: return status(404).body(MessageResponse("Chunk $id is missing!"))
         } catch (e: Exception) {
             return internalServerError()
-                .body(MessageResponse("Unable to fetch text bit!"))
+                .body(MessageResponse("Unable to fetch chunk!"))
         }
         return chunksService.replaceTranslation(
             chunk.id,
@@ -100,13 +100,13 @@ class ChunksController(
              ifLeft = {
                  when(it) {
                      EmbeddingCreationFailure -> ok()
-                         .body(MessageResponse("Text bit $id successfully patched! But embedding creation failed!"))
+                         .body(MessageResponse("Chunk $id successfully patched! But embedding creation failed!"))
                      is PersistenceFailure -> internalServerError()
-                         .body(MessageResponse("Unable to replace text bit $id!"))
+                         .body(MessageResponse("Unable to replace chunk $id!"))
                      is ValidationFailure -> TODO()
                  }
              },
-             ifRight = { ok().body(MessageResponse("Text bit $id successfully patched!")) }
+             ifRight = { ok().body(MessageResponse("Chunk $id successfully patched!")) }
          )
     }
 
