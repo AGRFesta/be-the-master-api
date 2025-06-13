@@ -6,3 +6,4 @@ data class PersistenceFailure(
     val message: String,
     val reason: Exception? = null
 ): BtmFlowFailure
+data class ValidationFailure(val message:String, val reason: Exception? = null): BtmFlowFailure

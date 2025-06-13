@@ -6,6 +6,7 @@ import org.agrfesta.btm.api.model.Topic
 import org.agrfesta.btm.api.model.Translation
 import org.agrfesta.test.mothers.aRandomUniqueString
 import java.util.*
+import kotlin.collections.Collection
 
 fun aGame() = Game.entries.random()
 fun aTopic() = Topic.entries.random()
@@ -18,28 +19,33 @@ fun aChunk(
     translations: Set<Translation> = emptySet()
 ) = Chunk(id, game, topic, translations)
 
-fun aTranslation(
-    text: String = aRandomUniqueString(),
-    language: String = aLanguage()
-) = Translation(text, language)
+fun aChunksCreationRequestJson(
+    game: String? = aGame().name,
+    topic: String? = aTopic().name,
+    language: String? = aLanguage(),
+    texts: List<String>? = List(3) { aRandomUniqueString() },
+    embed: Boolean? = true
+): String {
+    val properties = buildList {
+        game?.let { add(""""game": "$it"""") }
+        topic?.let { add(""""topic": "$topic"""") }
+        language?.let { add(""""language": "$language"""") }
+        texts?.let { add(""""texts": ${texts.toJsonStringArray()}""") }
+        embed?.let { add(""""embed": $embed""") }
+    }
 
-fun Translation.toJsonString() = """{"text": "$text", "language": "$language"}"""
+    return properties.joinToString(
+        separator = ",\n    ",
+        prefix = "{\n    ",
+        postfix = "\n}"
+    )
+}
 
-fun aChunkCreationRequest(
-    game: Game = aGame(),
-    translation: Translation = aTranslation(),
-    topic: Topic = aTopic(),
-    inBatch: Boolean? = null
-) = ChunkCreationRequest(game, topic, translation, inBatch ?: false)
-
-fun ChunkCreationRequest.toJsonString() = """
-        {
-            "game": "$game", 
-            "translation": ${translation.toJsonString()}, 
-            "topic": "$topic",
-            "inBatch": $inBatch
-        }
-    """.trimIndent()
+fun Collection<String>.toJsonStringArray(): String = joinToString(
+    prefix = "[",
+    postfix = "]",
+    separator = ","
+) { "\"${it}\"" }
 
 fun aChunkTranslationsPatchRequest(
     text: String = aRandomUniqueString(),
