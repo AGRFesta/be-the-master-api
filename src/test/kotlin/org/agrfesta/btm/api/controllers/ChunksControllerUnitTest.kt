@@ -322,7 +322,7 @@ class ChunksControllerUnitTest(
                 .andExpect(status().isBadRequest)
                 .andReturn().response.contentAsString
 
-            verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any()) }
+            verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any(), any(), any()) }
             val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
             response.message shouldBe "Text must not be blank!"
         }
@@ -339,7 +339,7 @@ class ChunksControllerUnitTest(
                 .andExpect(status().isBadRequest)
                 .andReturn().response.contentAsString
 
-            verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any()) }
+            verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any(), any(), any()) }
             val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
             response.message shouldBe "Language must not be blank and two charters long!"
         }
@@ -354,7 +354,7 @@ class ChunksControllerUnitTest(
             .andExpect(status().isBadRequest)
             .andReturn().response.contentAsString
 
-        verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any()) }
+        verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any(), any(), any()) }
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
         response.message shouldBe "Game is not valid!"
     }
@@ -371,7 +371,7 @@ class ChunksControllerUnitTest(
                     .andExpect(status().isBadRequest)
                     .andReturn().response.contentAsString
 
-                verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any()) }
+                verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any(), any(), any()) }
                 val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
                 response.message shouldBe "Game is missing!"
             }
@@ -386,7 +386,7 @@ class ChunksControllerUnitTest(
             .andExpect(status().isBadRequest)
             .andReturn().response.contentAsString
 
-        verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any()) }
+        verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any(), any(), any()) }
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
         response.message shouldBe "Topic is not valid!"
     }
@@ -403,9 +403,45 @@ class ChunksControllerUnitTest(
                     .andExpect(status().isBadRequest)
                     .andReturn().response.contentAsString
 
-                verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any()) }
+                verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any(), any(), any()) }
                 val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
                 response.message shouldBe "Topic is missing!"
+            }
+        }
+
+    @TestFactory
+    fun `similaritySearch() returns 400 when embeddings limit is not valid`() =
+        listOf(-3, 0).map {
+            dynamicTest(" -> '$it'") {
+                val requestJson = aChunkSearchBySimilarityRequestJson(embeddingsLimit = it)
+                val responseBody: String = mockMvc.perform(
+                    post("/chunks/similarity-search")
+                        .contentType("application/json")
+                        .content(requestJson))
+                    .andExpect(status().isBadRequest)
+                    .andReturn().response.contentAsString
+
+                verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any(), any(), any()) }
+                val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+                response.message shouldBe "'embeddingsLimit' must be a positive Int!"
+            }
+        }
+
+    @TestFactory
+    fun `similaritySearch() returns 400 when distance limit is not valid`() =
+        listOf(-3.1, 0.0, 2.0, 356.99).map {
+            dynamicTest(" -> '$it'") {
+                val requestJson = aChunkSearchBySimilarityRequestJson(distanceLimit = it)
+                val responseBody: String = mockMvc.perform(
+                    post("/chunks/similarity-search")
+                        .contentType("application/json")
+                        .content(requestJson))
+                    .andExpect(status().isBadRequest)
+                    .andReturn().response.contentAsString
+
+                verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any(), any(), any()) }
+                val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+                response.message shouldBe "'distanceLimit' must be in (0.0 ; 2.0)!"
             }
         }
 
@@ -431,7 +467,9 @@ class ChunksControllerUnitTest(
         val request = aChunkSearchBySimilarityRequest(game = game, topic = topic)
         val targetEmbedding = anEmbedding()
         coEvery { embeddingsProvider.createEmbedding(request.text) } returns targetEmbedding.right()
-        every { embeddingsDao.searchBySimilarity(targetEmbedding, game, topic, request.language) } throws failure
+        every {
+            embeddingsDao.searchBySimilarity(targetEmbedding, game, topic, request.language, any(), any())
+        } throws failure
 
         val responseBody: String = mockMvc.perform(
             post("/chunks/similarity-search")

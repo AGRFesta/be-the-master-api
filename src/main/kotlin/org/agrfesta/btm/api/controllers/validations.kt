@@ -4,6 +4,8 @@ import arrow.core.Either
 import arrow.core.flatMap
 import arrow.core.left
 import arrow.core.right
+import org.agrfesta.btm.api.controllers.ChunksController.Companion.DEFAULT_DISTANCE_LIMIT
+import org.agrfesta.btm.api.controllers.ChunksController.Companion.DEFAULT_EMBEDDINGS_LIMIT
 import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.model.Topic
 import org.agrfesta.btm.api.model.ValidationFailure
@@ -19,7 +21,9 @@ data class ValidChunkSearchBySimilarityRequest(
     val game: Game,
     val topic: Topic,
     val text: String,
-    val language: String
+    val language: String,
+    val embeddingsLimit: Int,
+    val distanceLimit: Double
 )
 
 fun ChunksCreationRequest.validate(): Either<ValidationFailure, ValidChunksCreationRequest> =
@@ -44,8 +48,12 @@ fun ChunkSearchBySimilarityRequest.validate(): Either<ValidationFailure, ValidCh
         validText -> language.validateLanguage().flatMap {
             validLanguage -> game.validateGame().flatMap {
                 validGame -> topic.validateTopic().flatMap {
-                    validTopic ->
-                        ValidChunkSearchBySimilarityRequest(validGame, validTopic, validText, validLanguage).right()
+                    validTopic -> embeddingsLimit.validateEmbeddingsLimit().flatMap {
+                        embeddingsLimit -> distanceLimit.validateDistanceLimit().flatMap {
+                            distanceLimit -> ValidChunkSearchBySimilarityRequest(
+                                validGame, validTopic, validText, validLanguage, embeddingsLimit, distanceLimit).right()
+                        }
+                    }
                 }
             }
         }
@@ -56,6 +64,18 @@ private fun Collection<String>?.validateTranslationTexts(): Either<ValidationFai
     val texts = this?.filter { it.isNotBlank() }?.toSet()
     return if (texts.isNullOrEmpty()) ValidationFailure("No chunks to create!").left()
     else texts.right()
+}
+
+private fun Int?.validateEmbeddingsLimit(): Either<ValidationFailure, Int> {
+    val limit = this ?: DEFAULT_EMBEDDINGS_LIMIT
+    return if (limit > 0) limit.right()
+    else ValidationFailure("'embeddingsLimit' must be a positive Int!").left()
+}
+
+private fun Double?.validateDistanceLimit(): Either<ValidationFailure, Double> {
+    val limit = this ?: DEFAULT_DISTANCE_LIMIT
+    return if ((limit > 0.0) && (limit < 2.0)) limit.right()
+    else ValidationFailure("'distanceLimit' must be in (0.0 ; 2.0)!").left()
 }
 
 private fun String?.validateLanguage(): Either<ValidationFailure, String> = if (isNullOrBlank() || length!=2) {

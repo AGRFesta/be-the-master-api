@@ -58,14 +58,17 @@ class EmbeddingsDaoJdbcImpl(
         target: Embedding,
         game: Game,
         topic: Topic,
-        language: String
+        language: String,
+        embeddingsLimit: Int,
+        distanceLimit: Double
     ): List<Pair<String, Double>> = embeddingRepo.getNearestEmbeddings(
             target = target,
             game = game.name,
             topic = topic.name,
-            languageCode = language
+            languageCode = language,
+            limit = embeddingsLimit
         )
-            .filter { it.second <= 0.6 }
+            .filter { it.second <= distanceLimit }
 
 
     override fun deleteByTranslationId(uuid: UUID): Either<PersistenceFailure, Unit> {

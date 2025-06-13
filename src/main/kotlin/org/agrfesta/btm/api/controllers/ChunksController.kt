@@ -41,6 +41,11 @@ class ChunksController(
 ) {
     private val embedder: Embedder = {text -> runBlocking { embeddingsProvider.createEmbedding(text) }}
 
+    companion object {
+        const val DEFAULT_EMBEDDINGS_LIMIT = 1_000
+        const val DEFAULT_DISTANCE_LIMIT = 0.3
+    }
+
     /**
      * POST /chunks
      *
@@ -122,7 +127,14 @@ class ChunksController(
     fun similaritySearch(@RequestBody request: ChunkSearchBySimilarityRequest): ResponseEntity<Any> = request.validate()
         .flatMap { valid ->
             chunksService.searchBySimilarity(
-                valid.text, valid.game, valid.topic, valid.language, embedder).flatMap { result ->
+                valid.text,
+                valid.game,
+                valid.topic,
+                valid.language,
+                embedder,
+                valid.embeddingsLimit,
+                valid.distanceLimit
+            ).flatMap { result ->
                     result.map { it.toSimilarityResultItem() }.right()
                 }
         }.fold(
@@ -165,7 +177,9 @@ data class ChunkSearchBySimilarityRequest(
     val game: String,
     val topic: String,
     val text: String,
-    val language: String
+    val language: String,
+    val embeddingsLimit: Int?, // = 1_000,
+    val distanceLimit: Double? // = 0.3
 )
 
 data class SimilarityResultItem(

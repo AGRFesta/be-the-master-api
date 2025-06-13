@@ -26,23 +26,6 @@ class ChunksService(
 
     fun findChunk(uuid: UUID): Chunk? = chunksDao.findChunk(uuid)
 
-    //TODO do we really need this?
-    fun persistTranslation(
-        translation: Translation,
-        chunkId: UUID,
-        embedder: Embedder? = null
-    ): Either<BtmFlowFailure, UUID> {
-        val translationId = translationsDao.persist(chunkId, translation)
-        return embedder?.let {
-            embedder(translation.text).flatMap {
-                embeddingsDao.persist(translationId, it).flatMap {
-                    translationsDao.setEmbeddingStatus(translationId, EMBEDDED)
-                    translationId.right()
-                }
-            }
-        } ?: translationId.right()
-    }
-
     fun createChunk(game: Game, topic: Topic): Either<BtmFlowFailure, UUID> = try {
         chunksDao.persist(topic, game).right()
     } catch (e: Exception) {
@@ -83,10 +66,12 @@ class ChunksService(
         game: Game,
         topic: Topic,
         language: String,
-        embedder: Embedder
+        embedder: Embedder,
+        embeddingsLimit: Int,
+        distanceLimit: Double
     ): Either<BtmFlowFailure, List<Pair<String, Double>>> = embedder(text).flatMap {
             try {
-                embeddingsDao.searchBySimilarity(it, game, topic, language).right()
+                embeddingsDao.searchBySimilarity(it, game, topic, language, embeddingsLimit, distanceLimit).right()
             } catch (e: Exception) {
                 PersistenceFailure("unable to fetch embeddings", e).left()
             }
