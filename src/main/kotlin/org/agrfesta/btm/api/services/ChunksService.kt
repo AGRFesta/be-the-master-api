@@ -24,6 +24,11 @@ class ChunksService(
     private val embeddingsDao: EmbeddingsDao
 ) {
 
+    companion object {
+        const val DEFAULT_EMBEDDINGS_LIMIT = 1_000
+        const val DEFAULT_DISTANCE_LIMIT = 0.3
+    }
+
     fun findChunk(uuid: UUID): Chunk? = chunksDao.findChunk(uuid)
 
     fun createChunk(game: Game, topic: Topic): Either<BtmFlowFailure, UUID> = try {
@@ -67,13 +72,16 @@ class ChunksService(
         topic: Topic,
         language: String,
         embedder: Embedder,
-        embeddingsLimit: Int,
-        distanceLimit: Double
+        embeddingsLimit: Int? = null,
+        distanceLimit: Double? = null
     ): Either<BtmFlowFailure, List<Pair<String, Double>>> = embedder(text).flatMap {
             try {
-                embeddingsDao.searchBySimilarity(it, game, topic, language, embeddingsLimit, distanceLimit).right()
+                embeddingsDao.searchBySimilarity(it, game, topic, language,
+                    embeddingsLimit ?: DEFAULT_EMBEDDINGS_LIMIT,
+                    distanceLimit ?: DEFAULT_DISTANCE_LIMIT
+                ).right()
             } catch (e: Exception) {
-                PersistenceFailure("unable to fetch embeddings", e).left()
+                PersistenceFailure("Unable to fetch embeddings!", e).left()
             }
         }
 

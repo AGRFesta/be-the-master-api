@@ -2,6 +2,7 @@ package org.agrfesta.btm.api.controllers
 
 import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.model.Chunk
+import org.agrfesta.btm.api.model.SupportedLanguage
 import org.agrfesta.btm.api.model.Topic
 import org.agrfesta.btm.api.model.Translation
 import org.agrfesta.test.mothers.aRandomUniqueString
@@ -11,6 +12,7 @@ import kotlin.collections.Collection
 fun aGame() = Game.entries.random()
 fun aTopic() = Topic.entries.random()
 fun aLanguage() = aRandomUniqueString().take(2)
+fun aSupportedLanguage() = SupportedLanguage.entries.random()
 
 fun aChunk(
     id: UUID = UUID.randomUUID(),

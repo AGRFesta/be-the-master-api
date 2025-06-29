@@ -1,0 +1,31 @@
+package org.agrfesta.btm.api.controllers
+
+import arrow.core.Either
+import org.agrfesta.btm.api.model.BtmConfigurationFailure
+import org.agrfesta.btm.api.model.BtmFlowFailure
+import org.agrfesta.btm.api.model.EmbeddingCreationFailure
+import org.agrfesta.btm.api.model.PersistenceFailure
+import org.agrfesta.btm.api.model.ValidationFailure
+import org.springframework.http.ResponseEntity
+import org.springframework.http.ResponseEntity.badRequest
+import org.springframework.http.ResponseEntity.internalServerError
+import org.springframework.http.ResponseEntity.ok
+
+val btmFlowFailureHandler: (BtmFlowFailure) -> ResponseEntity<Any> = {
+    when(it) {
+        EmbeddingCreationFailure -> internalServerError()
+            .body(MessageResponse("Unable to create target embedding!"))
+        is PersistenceFailure -> internalServerError()
+            .body(MessageResponse(it.message))
+        is ValidationFailure -> badRequest().body(MessageResponse(it.message))
+        is BtmConfigurationFailure -> internalServerError()
+            .body(MessageResponse(it.message))
+    }
+}
+
+fun Either<BtmFlowFailure, Any>.toResponseEntity(): ResponseEntity<Any> {
+    return fold(
+        ifLeft = btmFlowFailureHandler,
+        ifRight = { ok().body(it) }
+    )
+}

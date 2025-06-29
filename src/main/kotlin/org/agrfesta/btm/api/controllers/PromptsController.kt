@@ -1,15 +1,28 @@
 package org.agrfesta.btm.api.controllers
 
+import arrow.core.Either
 import arrow.core.Either.Left
 import arrow.core.Either.Right
+import arrow.core.align
+import arrow.core.flatMap
+import arrow.core.left
+import arrow.core.right
 import kotlinx.coroutines.runBlocking
+import org.agrfesta.btm.api.model.BtmConfigurationFailure
+import org.agrfesta.btm.api.model.BtmFlowFailure
 import org.agrfesta.btm.api.model.Embedding
 import org.agrfesta.btm.api.model.Game
-import org.agrfesta.btm.api.persistence.PartiesDao
+import org.agrfesta.btm.api.model.PersistenceFailure
+import org.agrfesta.btm.api.model.SupportedLanguage
 import org.agrfesta.btm.api.persistence.EmbeddingsDao
+import org.agrfesta.btm.api.persistence.PartiesDao
 import org.agrfesta.btm.api.persistence.jdbc.repositories.GlossariesRepository
+import org.agrfesta.btm.api.services.ChunksService.Companion.DEFAULT_DISTANCE_LIMIT
+import org.agrfesta.btm.api.services.ChunksService.Companion.DEFAULT_EMBEDDINGS_LIMIT
 import org.agrfesta.btm.api.services.EmbeddingsProvider
+import org.agrfesta.btm.api.services.PromptEnhanceConfiguration
 import org.agrfesta.btm.api.services.Tokenizer
+import org.agrfesta.btm.api.services.utils.LoggerDelegate
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR
 import org.springframework.http.HttpStatus.OK
@@ -27,12 +40,18 @@ class PromptsController(
     @Value("\${translation.prompt.introduction}") private val transPromptIntro: String,
     @Value("\${translation.prompt.original.text.introduction}") private val originalTextIntro: String,
     @Value("\${translation.prompt.suggested.glossary.introduction}") private val suggestedGlossaryIntro: String,
+    private val config: PromptEnhanceConfiguration,
     private val tokenizer: Tokenizer,
     private val partiesDao: PartiesDao,
     private val embeddingsProvider: EmbeddingsProvider,
     private val embeddingsDao: EmbeddingsDao,
     private val glossariesRepository: GlossariesRepository
 ) {
+    private val logger by LoggerDelegate()
+
+    companion object {
+        const val DEFAULT_MAX_TOKENS = 8_000
+    }
 
     @PostMapping("/enhance")
     fun enhance(@RequestBody request: PromptEnhanceRequest): ResponseEntity<Any> =
@@ -85,9 +104,71 @@ class PromptsController(
             .body("$transPromptIntro\n$originalTextIntro${request.text}\n$suggestedGlossaryIntro[$suggestedGlossary]")
     }
 
+    @PostMapping("/enhance/basic")
+    fun enhanceBasicPrompt(@RequestBody request: BasicPromptEnhanceRequest): ResponseEntity<Any> =
+        request.validate()
+            .flatMap { validated ->
+                runBlocking {
+                    logger.info("Creating prompt embedding...")
+                    embeddingsProvider.createEmbedding(validated.prompt)
+                }
+                    .flatMap { target ->
+                        val result = try {
+                            logger.info("Searching similar chunks...")
+                            embeddingsDao.searchBySimilarity(target, validated.game, validated.topic,
+                                validated.language.name,
+                                DEFAULT_EMBEDDINGS_LIMIT,
+                                DEFAULT_DISTANCE_LIMIT
+                            ).also {
+                                logger.info("Found ${it.size} chunks")
+                            }.right()
+                        } catch (e: Exception) {
+                            PersistenceFailure("Search by similarity failed!", e).left()
+                        }
+                        result.flatMap {
+                            enhancePrompt(validated, it)
+                        }
+                    }
+        }.toResponseEntity()
+
+    private fun enhancePrompt(
+        request: ValidBasicPromptEnhanceRequest,
+        context: List<Pair<String,Double>>
+    ): Either<BtmFlowFailure, String> {
+        val chunks = context.map { it.first }
+            .filterByTokenLimit(request.maxTokens)
+        return config.basicTemplate[SupportedLanguage.IT]
+            ?.replace("\${context}", chunks.joinToString(separator = "\n"))
+            ?.replace("\${prompt}", request.prompt)
+            ?.right()
+            ?: BtmConfigurationFailure("Unable to find IT basic template").left()
+    }
+
+    private fun List<String>.filterByTokenLimit(limit: Int): List<String> =
+        scan(0 to "") { (sum, _), str -> tokenizer.countTokensOrIgnore(sum, str) }
+            .takeWhile { it.first <= limit }
+            .map { it.second }
+            .filter { it.isNotBlank() }
+
+    private fun Tokenizer.countTokensOrIgnore(sum: Int, chunk: String): Pair<Int, String> = try {
+            val tokens = countTokens(chunk)
+            (sum + tokens) to chunk
+        } catch (e: Exception) {
+            logger.error("chunk token count failure!", e)
+            sum to ""
+        }
+
 }
 
 data class PromptRequest(val prompt: String)
 data class TokenCountResponse(val count: Int)
 data class PromptEnhanceRequest(val partyId: UUID, val prompt: String)
 data class TranslationPromptRequest(val game: Game, val text: String)
+
+data class BasicPromptEnhanceRequest(
+    val prompt: String?,
+    val game: String?,
+    val topic: String?,
+    val language: String?,
+    val maxTokens: Int?
+)
