@@ -5,6 +5,7 @@ import arrow.core.Either.Right
 import arrow.core.flatMap
 import arrow.core.right
 import kotlinx.coroutines.runBlocking
+import org.agrfesta.btm.api.model.BtmConfigurationFailure
 import org.agrfesta.btm.api.model.Embedding
 import org.agrfesta.btm.api.model.EmbeddingCreationFailure
 import org.agrfesta.btm.api.model.Game
@@ -40,11 +41,6 @@ class ChunksController(
     private val embeddingsProvider: EmbeddingsProvider
 ) {
     private val embedder: Embedder = {text -> runBlocking { embeddingsProvider.createEmbedding(text) }}
-
-    companion object {
-        const val DEFAULT_EMBEDDINGS_LIMIT = 1_000
-        const val DEFAULT_DISTANCE_LIMIT = 0.3
-    }
 
     /**
      * POST /chunks
@@ -109,6 +105,8 @@ class ChunksController(
                      is PersistenceFailure -> internalServerError()
                          .body(MessageResponse("Unable to replace chunk $id!"))
                      is ValidationFailure -> TODO()
+                     is BtmConfigurationFailure -> internalServerError()
+                         .body(MessageResponse(it.message))
                  }
              },
              ifRight = { ok().body(MessageResponse("Chunk $id successfully patched!")) }
@@ -137,18 +135,7 @@ class ChunksController(
             ).flatMap { result ->
                     result.map { it.toSimilarityResultItem() }.right()
                 }
-        }.fold(
-            ifLeft = {
-                when(it) {
-                    EmbeddingCreationFailure -> internalServerError()
-                        .body(MessageResponse("Unable to create target embedding!"))
-                    is PersistenceFailure -> internalServerError()
-                        .body(MessageResponse("Unable to fetch embeddings!"))
-                    is ValidationFailure -> badRequest().body(MessageResponse(it.message))
-                }
-            },
-            ifRight = { ok().body(it) }
-        )
+        }.toResponseEntity()
 
 }
 
@@ -178,8 +165,8 @@ data class ChunkSearchBySimilarityRequest(
     val topic: String,
     val text: String,
     val language: String,
-    val embeddingsLimit: Int?, // = 1_000,
-    val distanceLimit: Double? // = 0.3
+    val embeddingsLimit: Int?,
+    val distanceLimit: Double?
 )
 
 data class SimilarityResultItem(

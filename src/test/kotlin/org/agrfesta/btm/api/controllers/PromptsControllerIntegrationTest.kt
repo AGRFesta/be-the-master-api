@@ -1,16 +1,24 @@
 package org.agrfesta.btm.api.controllers
 
+import arrow.core.right
+import com.ninjasquad.springmockk.MockkBean
 import io.kotest.matchers.maps.shouldContainExactly
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldStartWith
+import io.mockk.coEvery
+import io.mockk.every
 import io.restassured.RestAssured.given
 import io.restassured.http.ContentType
 import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.persistence.jdbc.repositories.GlossariesRepository
+import org.agrfesta.btm.api.services.EmbeddingsProvider
+import org.agrfesta.btm.api.services.Tokenizer
 import org.agrfesta.btm.api.services.utils.toNoNanoSec
 import org.agrfesta.test.mothers.aGlossaryEntry
 import org.agrfesta.test.mothers.aRandomUniqueString
+import org.agrfesta.test.mothers.anEmbedding
+import org.agrfesta.test.mothers.generateVectorWithDistance
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
@@ -26,10 +34,17 @@ class PromptsControllerIntegrationTest(
     @Value("\${translation.prompt.introduction}") private val transPromptIntro: String,
     @Value("\${translation.prompt.original.text.introduction}") private val originalTextIntro: String,
     @Value("\${translation.prompt.suggested.glossary.introduction}") private val suggestedGlossaryIntro: String,
-    @Autowired private val glossariesRepository: GlossariesRepository
-): AbstractIntegrationTest() {
+    @Autowired private val glossariesRepository: GlossariesRepository,
+    @Autowired private val ragAsserter: RagAsserter,
+    @Autowired @MockkBean private val tokenizer: Tokenizer,
+    @Autowired @MockkBean private val embeddingsProvider: EmbeddingsProvider
+): AbstractIntegrationTest(), RagAsserter by ragAsserter {
     private val now = Instant.now().toNoNanoSec()
     private val glossarySectionRegex = """\[(.*?)](.*)""".toRegex()
+    private val game = aGame()
+    private val topic = aTopic()
+    private val language = aSupportedLanguage()
+    private val prompt = aRandomUniqueString()
 
     companion object {
         @Container
@@ -48,6 +63,57 @@ class PromptsControllerIntegrationTest(
         }
     }
 
+    ///// enhanceBasicPrompt ///////////////////////////////////////////////////////////////////////////////////////////
+
+    @Test
+    fun `enhanceBasicPrompt() Enhances basic prompt trough RAG`() {
+        val target = anEmbedding()
+        val chunkA = aRandomUniqueString()
+        val chunkB = aRandomUniqueString()
+        val chunkC = aRandomUniqueString()
+        val chunkD = aRandomUniqueString()
+        val chunkE = aRandomUniqueString()
+        val embeddingA = generateVectorWithDistance(target, 0.25)
+        val embeddingB = generateVectorWithDistance(target, 0.02)
+        val embeddingC = generateVectorWithDistance(target, 0.01)
+        val embeddingD = generateVectorWithDistance(target, 0.29)
+        // Following will be excluded because, by default, distance should be less than 0.3
+        val embeddingE = generateVectorWithDistance(target, 0.59)
+        val requestJson = aBasicPromptEnhanceRequestJson(
+            prompt = prompt,
+            game = game.name,
+            topic = topic.name,
+            language = language.name,
+            maxTokens = 600
+        )
+        givenChunkEmbedding(game, topic, language = language.name, text = chunkA, embeddingA)
+        givenChunkEmbedding(game, topic, language = language.name, text = chunkB, embeddingB)
+        givenChunkEmbedding(game, topic, language = language.name, text = chunkC, embeddingC)
+        givenChunkEmbedding(game, topic, language = language.name, text = chunkD, embeddingD)
+        givenChunkEmbedding(game, topic, language = language.name, text = chunkE, embeddingE)
+        coEvery { embeddingsProvider.createEmbedding(prompt) } returns target.right()
+        every { tokenizer.countTokens(chunkC) } returns 300 // first
+        every { tokenizer.countTokens(chunkB) } returns 150 // second
+        every { tokenizer.countTokens(chunkA) } returns 350 // third, EXCLUDED, not enough tokens remained
+        every { tokenizer.countTokens(chunkD) } returns 10  // fourth, EXCLUDED, not enough tokens remained (actually can be included, we should consider it as improvement)
+
+        val result = given()
+            .contentType(ContentType.JSON)
+            .body(requestJson)
+            .`when`()
+            .post("/prompts/enhance/basic")
+            .then()
+            .statusCode(200)
+            .extract().asString()
+
+        val regex = Regex("""(?s).*?: \[(.*?)](?:,|, ) .*?: \[(.*?)]""")
+        val match = regex.find(result)
+        match?.groups?.get(1)?.value shouldBe "$chunkC\n$chunkB"
+        match?.groups?.get(2)?.value shouldBe prompt
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     @TestFactory
     fun returnsTokenCountsOfAPrompt() = listOf(
         "" to 0,
@@ -56,6 +122,8 @@ class PromptsControllerIntegrationTest(
         "per una selva oscura" to 6
     ).map {
         dynamicTest("${it.first} -> ${it.second}") {
+            every { tokenizer.countTokens(it.first) } returns it.second
+
             val result = given()
                 .contentType(ContentType.JSON)
                 .body("""{"prompt":"${it.first}"}""")

@@ -14,7 +14,6 @@ import io.mockk.every
 import io.restassured.RestAssured.given
 import io.restassured.common.mapper.TypeRef
 import io.restassured.http.ContentType
-import org.agrfesta.btm.api.model.Embedding
 import org.agrfesta.btm.api.model.EmbeddingCreationFailure
 import org.agrfesta.btm.api.model.EmbeddingStatus.EMBEDDED
 import org.agrfesta.btm.api.model.EmbeddingStatus.UNEMBEDDED
@@ -48,9 +47,10 @@ class ChunksControllerIntegrationTest(
     @Autowired private val chunksRepo: ChunksRepository,
     @Autowired private val embeddingRepo: EmbeddingRepository,
     @Autowired private val translationsRepo: TranslationsRepository,
+    @Autowired private val ragAsserter: RagAsserter,
     @Autowired @MockkBean private val embeddingsProvider: EmbeddingsProvider,
     @Autowired @MockkBean private val timeService: TimeService
-): AbstractIntegrationTest() {
+): AbstractIntegrationTest(), RagAsserter by ragAsserter {
 
     companion object {
         @Container
@@ -692,24 +692,5 @@ class ChunksControllerIntegrationTest(
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    private fun givenChunkEmbedding(
-        game: Game = aGame(),
-        topic: Topic = aTopic(),
-        language: String = aLanguage(),
-        text: String,
-        embedding: Embedding
-    ): UUID {
-        val chunk = aChunk(game = game, topic = topic)
-        chunksRepo.insert(chunk.id, game, topic, createdOn = now)
-        val translation = aTranslationEntity(
-            chunkId = chunk.id,
-            embeddingStatus = EMBEDDED,
-            text = text,
-            languageCode = language)
-        translationsRepo.insert(translation)
-        embeddingRepo.insertEmbedding(UUID.randomUUID(), translation.id, embedding, now)
-        return translation.id
-    }
 
 }
