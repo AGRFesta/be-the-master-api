@@ -34,6 +34,10 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.util.*
 
+/**
+ * REST controller for managing prompt-related operations such as enhancement, token counting,
+ * embeddings, and glossary-based translation support.
+ */
 @RestController
 @RequestMapping("/prompts")
 class PromptsController(
@@ -53,6 +57,16 @@ class PromptsController(
         const val DEFAULT_MAX_TOKENS = 8_000
     }
 
+    /**
+     * POST /prompts/enhance
+     *
+     * Enhances a prompt by retrieving the most similar chunks for the given party and appending them to the prompt.
+     * This enhancement uses nearest embedding search and contextual party data.
+     *
+     * @param request the [PromptEnhanceRequest] containing the party ID and original prompt.
+     * @return 200 OK with enhanced prompt string if successful,
+     *         500 Internal Server Error in case of failure at any stage.
+     */
     @PostMapping("/enhance")
     fun enhance(@RequestBody request: PromptEnhanceRequest): ResponseEntity<Any> =
         when (val partyResult = partiesDao.getParty(request.partyId)) {
@@ -77,12 +91,29 @@ class PromptsController(
             }
         }
 
+    /**
+     * POST /prompts/tokens-count
+     *
+     * Calculates the number of tokens in a given prompt using the configured tokenizer.
+     *
+     * @param request the [PromptRequest] containing the prompt string.
+     * @return 200 OK with [TokenCountResponse] containing the number of tokens.
+     */
     @PostMapping("/tokens-count")
     fun tokenCount(@RequestBody request: PromptRequest): ResponseEntity<Any> {
         val count = tokenizer.countTokens(request.prompt)
         return status(OK).body(TokenCountResponse(count))
     }
 
+    /**
+     * POST /prompts/embedding
+     *
+     * Generates an embedding vector for the given prompt text.
+     *
+     * @param request the [PromptRequest] containing the prompt string.
+     * @return 200 OK with the embedding on success,
+     *         500 Internal Server Error if the embedding fails to be created.
+     */
     @PostMapping("/embedding")
     fun createEmbedding(@RequestBody request: PromptRequest): ResponseEntity<Any> {
         val result = runBlocking { embeddingsProvider.createEmbedding(request.prompt) }
@@ -92,6 +123,15 @@ class PromptsController(
         }
     }
 
+    /**
+     * POST /prompts/translation
+     *
+     * Generates a translation prompt for the given game and text, enhanced by glossary suggestions
+     * based on term matches found within the text.
+     *
+     * @param request the [TranslationPromptRequest] including game and text to translate.
+     * @return 200 OK with a translation prompt containing introduction, original text, and suggested glossary entries.
+     */
     @PostMapping("/translation")
     fun createTranslationPrompt(@RequestBody request: TranslationPromptRequest): ResponseEntity<Any> {
         val glossary = glossariesRepository.getAllEntriesByGame(request.game)
@@ -104,6 +144,15 @@ class PromptsController(
             .body("$transPromptIntro\n$originalTextIntro${request.text}\n$suggestedGlossaryIntro[$suggestedGlossary]")
     }
 
+    /**
+     * POST /prompts/enhance/basic
+     *
+     * Enhances a prompt using basic template logic. It finds similar chunks by embedding similarity,
+     * filters them by a token limit, and inserts them into a language-specific template.
+     *
+     * @param request the [BasicPromptEnhanceRequest] containing prompt, context info, and token constraints.
+     * @return 200 OK with the final enhanced prompt, or error response in case of validation or processing failure.
+     */
     @PostMapping("/enhance/basic")
     fun enhanceBasicPrompt(@RequestBody request: BasicPromptEnhanceRequest): ResponseEntity<Any> =
         request.validate()
