@@ -17,6 +17,10 @@ import org.agrfesta.btm.api.persistence.TranslationsDao
 import org.springframework.stereotype.Service
 import java.util.*
 
+/**
+ * Service layer for managing text chunks, their translations, and embedding-related operations.
+ * It acts as a bridge between the web layer and the persistence layer.
+ */
 @Service
 class ChunksService(
     private val chunksDao: ChunksDao,
@@ -25,12 +29,29 @@ class ChunksService(
 ) {
 
     companion object {
+        /** Default maximum number of embeddings returned in similarity search. */
         const val DEFAULT_EMBEDDINGS_LIMIT = 1_000
+
+        /** Default maximum distance threshold for similarity search results. */
         const val DEFAULT_DISTANCE_LIMIT = 0.3
     }
 
+    /**
+     * Retrieves a chunk by its unique identifier.
+     *
+     * @param uuid the [UUID] of the chunk to retrieve.
+     * @return the [Chunk] if found, or null otherwise.
+     */
     fun findChunk(uuid: UUID): Chunk? = chunksDao.findChunk(uuid)
 
+    /**
+     * Persists a new chunk associated with a given game and topic.
+     *
+     * @param game the game to associate the chunk with.
+     * @param topic the topic to associate the chunk with.
+     * @return [Either] containing the UUID of the newly created chunk on success,
+     *         or [PersistenceFailure] if saving fails.
+     */
     fun createChunk(game: Game, topic: Topic): Either<BtmFlowFailure, UUID> = try {
         chunksDao.persist(topic, game).right()
     } catch (e: Exception) {
@@ -38,13 +59,15 @@ class ChunksService(
     }
 
     /**
-     * For a specific [Chunk] identified by [chunkId], replace language translation if already exist otherwise
-     * simply adds it. Optionally (if [embedder] is not null) creates embedding for the new text.
+     * Replaces or inserts a translation for a given chunk in a specific language.
+     * If an [embedder] is provided, the text is embedded and stored.
      *
-     * @param chunkId [Chunk] unique identifier.
-     * @param language [Translation] language.
-     * @param newText new [Translation] text.
-     * @param embedder optional embedding function.
+     * @param chunkId the UUID of the target chunk.
+     * @param language the language of the translation.
+     * @param newText the translation text to add or replace.
+     * @param embedder optional function to create an embedding for the new text.
+     * @return [Either] right if the operation succeeds,
+     *         or [PersistenceFailure] if translation or embedding persistence fails.
      */
     fun replaceTranslation(
         chunkId: UUID,
@@ -66,6 +89,20 @@ class ChunksService(
         } ?: Unit.right()
     }
 
+    /**
+     * Performs a similarity search for the provided text, returning similar chunks
+     * filtered by game, topic, and language.
+     *
+     * @param text the input text to embed and compare.
+     * @param game the game to filter the chunks by.
+     * @param topic the topic to filter the chunks by.
+     * @param language the language to filter the chunks by.
+     * @param embedder a function that generates an embedding from the input text.
+     * @param embeddingsLimit optional limit for the number of results.
+     * @param distanceLimit optional maximum distance for similarity.
+     * @return [Either] containing a list of pairs (text, distance) representing similar translations,
+     *         or [PersistenceFailure] on error.
+     */
     fun searchBySimilarity(
         text: String,
         game: Game,

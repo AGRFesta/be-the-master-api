@@ -31,7 +31,7 @@ import java.util.*
 import kotlin.math.sqrt
 
 /**
- * REST controller for managing Text Bits (small text units), their translations,
+ * REST controller for managing Text Chunks (small text units), their translations,
  * and similarity-based search.
  */
 @RestController
@@ -45,11 +45,13 @@ class ChunksController(
     /**
      * POST /chunks
      *
-     * Creates a new chunk with a translation for a given game and topic.
+     * Creates multiple chunks for a specific game and topic, each associated with a translation
+     * in the given language. Optionally, each translation can be embedded for similarity search.
      *
-     * @param request the [ChunkCreationRequest] containing game, topic, translation, and batch flag.
-     * @return 200 OK if successful (with optional embedding warning), 400 if input is invalid,
-     *         or 500 if persistence fails.
+     * @param request the [ChunksCreationRequest] containing game, topic, language, list of texts, and embed flag.
+     * @return 200 OK with success message if all chunks are created,
+     *         400 Bad Request if the input validation fails,
+     *         500 Internal Server Error if persistence fails during chunk creation or translation.
      */
     @PostMapping
     fun createChunks(@RequestBody request: ChunksCreationRequest): ResponseEntity<Any> = request.validate()
@@ -73,12 +75,15 @@ class ChunksController(
     /**
      * PATCH /chunks/{id}
      *
-     * Replaces an existing translation of a Text Bit with new text content.
+     * Updates or replaces the translation of an existing chunk, for a given language.
+     * Optionally, the translation is embedded if not done in batch.
      *
      * @param id the UUID of the chunk to update
-     * @param request the [ChunkTranslationPatchRequest] containing updated text, language, and batch flag
-     * @return 200 OK if successful, possibly with embedding failure warning,
-     *         400 if input is invalid, 404 if chunk not found, or 500 on error
+     * @param request the [ChunkTranslationPatchRequest] containing new text, language, and batch flag
+     * @return 200 OK if updated (with optional embedding warning),
+     *         400 Bad Request if the text is empty,
+     *         404 Not Found if the chunk doesn't exist,
+     *         500 Internal Server Error if persistence or embedding fails.
      */
     @PatchMapping("/{id}")
     fun update(@PathVariable id: UUID, @RequestBody request: ChunkTranslationPatchRequest): ResponseEntity<Any> {
@@ -116,10 +121,14 @@ class ChunksController(
     /**
      * POST /chunks/similarity-search
      *
-     * Performs similarity search based on the embedding of the provided text.
+     * Performs a similarity search based on the embedding of the provided text.
+     * It compares the embedding to existing chunk embeddings filtered by game, topic, and language.
      *
-     * @param request the [ChunkSearchBySimilarityRequest] including game, topic, text, and language.
-     * @return 200 OK with list of similar Text Bits, or appropriate error responses.
+     * @param request the [ChunkSearchBySimilarityRequest] containing the text to search,
+     *                target game, topic, language, and optional search parameters.
+     * @return 200 OK with list of similar chunks sorted by distance,
+     *         400 Bad Request if input is invalid,
+     *         500 Internal Server Error on processing failure.
      */
     @PostMapping("/similarity-search")
     fun similaritySearch(@RequestBody request: ChunkSearchBySimilarityRequest): ResponseEntity<Any> = request.validate()
@@ -145,13 +154,6 @@ data class ChunksCreationRequest(
     val language: String?,
     val texts: List<String>?,
     val embed: Boolean?
-)
-
-data class ChunkCreationRequest(
-    val game: Game,
-    val topic: Topic,
-    val translation: Translation,
-    val inBatch: Boolean = false
 )
 
 data class ChunkTranslationPatchRequest(
