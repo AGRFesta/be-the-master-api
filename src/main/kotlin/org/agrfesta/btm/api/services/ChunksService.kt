@@ -9,6 +9,7 @@ import org.agrfesta.btm.api.model.EmbeddingStatus.EMBEDDED
 import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.model.PersistenceFailure
 import org.agrfesta.btm.api.model.Chunk
+import org.agrfesta.btm.api.model.ReplaceTranslationFailure
 import org.agrfesta.btm.api.model.Topic
 import org.agrfesta.btm.api.model.Translation
 import org.agrfesta.btm.api.persistence.EmbeddingsDao
@@ -67,14 +68,14 @@ class ChunksService(
      * @param newText the translation text to add or replace.
      * @param embedder optional function to create an embedding for the new text.
      * @return [Either] right if the operation succeeds,
-     *         or [PersistenceFailure] if translation or embedding persistence fails.
+     *  or [ReplaceTranslationFailure] if translation or embedding persistence fails.
      */
     fun replaceTranslation(
         chunkId: UUID,
         language: String,
         newText: String,
         embedder: Embedder? = null
-    ): Either<BtmFlowFailure, Unit> {
+    ): Either<ReplaceTranslationFailure, Unit> {
         val translationId = try {
             translationsDao.addOrReplace(chunkId, language, newText)
         } catch (e: Exception) {

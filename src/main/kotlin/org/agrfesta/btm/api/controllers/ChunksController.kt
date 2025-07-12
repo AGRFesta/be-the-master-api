@@ -10,6 +10,7 @@ import org.agrfesta.btm.api.model.Embedding
 import org.agrfesta.btm.api.model.EmbeddingCreationFailure
 import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.model.PersistenceFailure
+import org.agrfesta.btm.api.model.TokenCountFailure
 import org.agrfesta.btm.api.model.Topic
 import org.agrfesta.btm.api.model.Translation
 import org.agrfesta.btm.api.model.ValidationFailure
@@ -109,9 +110,6 @@ class ChunksController(
                          .body(MessageResponse("Chunk $id successfully patched! But embedding creation failed!"))
                      is PersistenceFailure -> internalServerError()
                          .body(MessageResponse("Unable to replace chunk $id!"))
-                     is ValidationFailure -> TODO()
-                     is BtmConfigurationFailure -> internalServerError()
-                         .body(MessageResponse(it.message))
                  }
              },
              ifRight = { ok().body(MessageResponse("Chunk $id successfully patched!")) }

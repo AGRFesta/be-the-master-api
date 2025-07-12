@@ -47,7 +47,7 @@ class E5ServiceTest{
 
         val result = runBlocking { sut.countTokens(text) }
 
-        result shouldBe tokens
+        result shouldBeRight tokens
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
