@@ -5,6 +5,10 @@
 [![Kotlin](https://img.shields.io/badge/Kotlin-1.9.24-orange.svg)](https://kotlinlang.org/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.3-brightgreen.svg)](https://spring.io/projects/spring-boot)
 
+📖 Available in: [Italiano 🇮🇹](README.it.md)
+
+---
+
 **Be the Master!** is a Kotlin-based Retrieval-Augmented Generation (RAG) application that manages and semantically queries a collection of text chunks representing the *lore* or *rules* of a game. It enables natural-language search and intelligent retrieval of relevant information.
 
 ---
