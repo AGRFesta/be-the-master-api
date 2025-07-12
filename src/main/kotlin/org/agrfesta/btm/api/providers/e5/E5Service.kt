@@ -6,6 +6,7 @@ import arrow.core.right
 import kotlinx.coroutines.runBlocking
 import org.agrfesta.btm.api.model.Embedding
 import org.agrfesta.btm.api.model.EmbeddingCreationFailure
+import org.agrfesta.btm.api.model.TokenCountFailure
 import org.agrfesta.btm.api.services.EmbeddingsProvider
 import org.agrfesta.btm.api.services.Tokenizer
 import org.agrfesta.btm.api.services.utils.LoggerDelegate
@@ -22,10 +23,10 @@ class E5Service(
     override val name: String
         get() = TODO("Not yet implemented")
 
-    override fun countTokens(text: String): Int = runBlocking {
+    override fun countTokens(text: String): Either<TokenCountFailure, Int> = runBlocking {
             client.countTokens(E5CountTokenRequest(listOf(text)))
                 .tokenCounts
-                .first().tokenCount
+                .first().tokenCount.right()
         }
 
     override suspend fun createEmbedding(text: String): Either<EmbeddingCreationFailure, Embedding> =

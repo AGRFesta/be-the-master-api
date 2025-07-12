@@ -98,12 +98,14 @@ class PromptsController(
      *
      * @param request the [PromptRequest] containing the prompt string.
      * @return 200 OK with [TokenCountResponse] containing the number of tokens.
+     *          500 Internal Server Error if tokens count fails.
      */
     @PostMapping("/tokens-count")
-    fun tokenCount(@RequestBody request: PromptRequest): ResponseEntity<Any> {
-        val count = tokenizer.countTokens(request.prompt)
-        return status(OK).body(TokenCountResponse(count))
-    }
+    fun tokenCount(@RequestBody request: PromptRequest): ResponseEntity<Any> =
+        when (val count = tokenizer.countTokens(request.prompt)) {
+            is Left -> status(INTERNAL_SERVER_ERROR).body("Failure!")
+            is Right -> status(OK).body(TokenCountResponse(count.value))
+        }
 
     /**
      * POST /prompts/embedding
@@ -199,13 +201,14 @@ class PromptsController(
             .map { it.second }
             .filter { it.isNotBlank() }
 
-    private fun Tokenizer.countTokensOrIgnore(sum: Int, chunk: String): Pair<Int, String> = try {
-            val tokens = countTokens(chunk)
-            (sum + tokens) to chunk
-        } catch (e: Exception) {
-            logger.error("chunk token count failure!", e)
-            sum to ""
-        }
+    private fun Tokenizer.countTokensOrIgnore(sum: Int, chunk: String): Pair<Int, String> =
+        countTokens(chunk).fold(
+                ifLeft = {
+                    logger.error("chunk token count failure!")
+                    sum to ""
+                },
+                ifRight = { (sum + it) to chunk }
+            )
 
 }
 

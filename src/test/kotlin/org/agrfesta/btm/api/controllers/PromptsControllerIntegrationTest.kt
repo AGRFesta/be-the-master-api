@@ -92,10 +92,10 @@ class PromptsControllerIntegrationTest(
         givenChunkEmbedding(game, topic, language = language.name, text = chunkD, embeddingD)
         givenChunkEmbedding(game, topic, language = language.name, text = chunkE, embeddingE)
         coEvery { embeddingsProvider.createEmbedding(prompt) } returns target.right()
-        every { tokenizer.countTokens(chunkC) } returns 300 // first
-        every { tokenizer.countTokens(chunkB) } returns 150 // second
-        every { tokenizer.countTokens(chunkA) } returns 350 // third, EXCLUDED, not enough tokens remained
-        every { tokenizer.countTokens(chunkD) } returns 10  // fourth, EXCLUDED, not enough tokens remained (actually can be included, we should consider it as improvement)
+        every { tokenizer.countTokens(chunkC) } returns 300.right() // first
+        every { tokenizer.countTokens(chunkB) } returns 150.right() // second
+        every { tokenizer.countTokens(chunkA) } returns 350.right() // third, EXCLUDED, not enough tokens remained
+        every { tokenizer.countTokens(chunkD) } returns 10.right()  // fourth, EXCLUDED, not enough tokens remained (actually can be included, we should consider it as improvement)
 
         val result = given()
             .contentType(ContentType.JSON)
@@ -129,7 +129,7 @@ class PromptsControllerIntegrationTest(
         "per una selva oscura" to 6
     ).map {
         dynamicTest("${it.first} -> ${it.second}") {
-            every { tokenizer.countTokens(it.first) } returns it.second
+            every { tokenizer.countTokens(it.first) } returns it.second.right()
 
             val result = given()
                 .contentType(ContentType.JSON)

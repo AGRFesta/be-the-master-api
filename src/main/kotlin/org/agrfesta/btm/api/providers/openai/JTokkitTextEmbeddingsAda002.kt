@@ -1,9 +1,12 @@
 package org.agrfesta.btm.api.providers.openai
 
+import arrow.core.Either
+import arrow.core.right
 import com.knuddels.jtokkit.Encodings.newDefaultEncodingRegistry
 import com.knuddels.jtokkit.api.Encoding
 import com.knuddels.jtokkit.api.EncodingRegistry
 import com.knuddels.jtokkit.api.ModelType.TEXT_EMBEDDING_ADA_002
+import org.agrfesta.btm.api.model.TokenCountFailure
 import org.agrfesta.btm.api.services.Tokenizer
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Service
@@ -16,6 +19,5 @@ class JTokkitTextEmbeddingsAda002: Tokenizer {
     private val enc: Encoding = registry.getEncodingForModel(modelType)
 
     override val name: String = modelType.name
-
-    override fun countTokens(text: String): Int = enc.countTokens(text)
+    override fun countTokens(text: String): Either<TokenCountFailure, Int> = enc.countTokens(text).right()
 }
