@@ -10,5 +10,7 @@ data class PersistenceFailure(
 ): BtmFlowFailure, ReplaceTranslationFailure
 data class ValidationFailure(val message:String, val reason: Exception? = null): BtmFlowFailure
 
-sealed interface ReplaceTranslationFailure
+sealed interface ReplaceTranslationFailure: PatchChunkFailure
 
+sealed interface PatchChunkFailure
+data object MissingChunk: PatchChunkFailure

@@ -3,17 +3,13 @@ package org.agrfesta.btm.api.controllers
 import arrow.core.Either.Left
 import arrow.core.Either.Right
 import arrow.core.flatMap
+import arrow.core.left
 import arrow.core.right
 import kotlinx.coroutines.runBlocking
-import org.agrfesta.btm.api.model.BtmConfigurationFailure
 import org.agrfesta.btm.api.model.Embedding
 import org.agrfesta.btm.api.model.EmbeddingCreationFailure
-import org.agrfesta.btm.api.model.Game
+import org.agrfesta.btm.api.model.MissingChunk
 import org.agrfesta.btm.api.model.PersistenceFailure
-import org.agrfesta.btm.api.model.TokenCountFailure
-import org.agrfesta.btm.api.model.Topic
-import org.agrfesta.btm.api.model.Translation
-import org.agrfesta.btm.api.model.ValidationFailure
 import org.agrfesta.btm.api.services.ChunksService
 import org.agrfesta.btm.api.services.Embedder
 import org.agrfesta.btm.api.services.EmbeddingsProvider
@@ -91,29 +87,26 @@ class ChunksController(
         if (request.text.isBlank()) {
             return badRequest().body(MessageResponse("Text must not be empty!"))
         }
-        val chunk = try {
-            chunksService.findChunk(id)
-                ?: return status(404).body(MessageResponse("Chunk $id is missing!"))
-        } catch (e: Exception) {
-            return internalServerError()
-                .body(MessageResponse("Unable to fetch chunk!"))
-        }
-        return chunksService.replaceTranslation(
-            chunk.id,
-            request.language,
-            request.text,
-            if (request.inBatch) null else embedder
-        ).fold(
-             ifLeft = {
-                 when(it) {
-                     EmbeddingCreationFailure -> ok()
-                         .body(MessageResponse("Chunk $id successfully patched! But embedding creation failed!"))
-                     is PersistenceFailure -> internalServerError()
-                         .body(MessageResponse("Unable to replace chunk $id!"))
-                 }
-             },
-             ifRight = { ok().body(MessageResponse("Chunk $id successfully patched!")) }
-         )
+        return chunksService.findChunk(id).flatMap {
+            if (it == null) MissingChunk.left()
+            else chunksService.replaceTranslation(
+                it.id,
+                request.language,
+                request.text,
+                if (request.inBatch) null else embedder
+            )
+        }.fold(
+            ifLeft = {
+                when(it) {
+                    EmbeddingCreationFailure -> ok()
+                        .body(MessageResponse("Chunk $id successfully patched! But embedding creation failed!"))
+                    is PersistenceFailure -> internalServerError()
+                        .body(MessageResponse("Unable to replace chunk $id!"))
+                    MissingChunk -> status(404).body(MessageResponse("Chunk $id is missing!"))
+                }
+            },
+            ifRight = { ok().body(MessageResponse("Chunk $id successfully patched!")) }
+        )
     }
 
     /**
