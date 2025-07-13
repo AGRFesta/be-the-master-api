@@ -5,15 +5,14 @@ import arrow.core.flatMap
 import arrow.core.left
 import arrow.core.right
 import org.agrfesta.btm.api.model.BtmFlowFailure
+import org.agrfesta.btm.api.model.Chunk
 import org.agrfesta.btm.api.model.EmbeddingStatus.EMBEDDED
 import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.model.PersistenceFailure
-import org.agrfesta.btm.api.model.Chunk
 import org.agrfesta.btm.api.model.ReplaceTranslationFailure
 import org.agrfesta.btm.api.model.Topic
-import org.agrfesta.btm.api.model.Translation
-import org.agrfesta.btm.api.persistence.EmbeddingsDao
 import org.agrfesta.btm.api.persistence.ChunksDao
+import org.agrfesta.btm.api.persistence.EmbeddingsDao
 import org.agrfesta.btm.api.persistence.TranslationsDao
 import org.springframework.stereotype.Service
 import java.util.*
@@ -42,8 +41,14 @@ class ChunksService(
      *
      * @param uuid the [UUID] of the chunk to retrieve.
      * @return the [Chunk] if found, or null otherwise.
+     * @return [Either] containing Chunk or null (if missing) on success,
+     *  or [PersistenceFailure] if fetch fails.
      */
-    fun findChunk(uuid: UUID): Chunk? = chunksDao.findChunk(uuid)
+    fun findChunk(uuid: UUID): Either<PersistenceFailure, Chunk?> = try {
+        chunksDao.findChunk(uuid).right()
+    } catch (e: Exception) {
+        PersistenceFailure("Chunk fetch failure!", e).left()
+    }
 
     /**
      * Persists a new chunk associated with a given game and topic.
@@ -51,7 +56,7 @@ class ChunksService(
      * @param game the game to associate the chunk with.
      * @param topic the topic to associate the chunk with.
      * @return [Either] containing the UUID of the newly created chunk on success,
-     *         or [PersistenceFailure] if saving fails.
+     *  or [PersistenceFailure] if saving fails.
      */
     fun createChunk(game: Game, topic: Topic): Either<BtmFlowFailure, UUID> = try {
         chunksDao.persist(topic, game).right()

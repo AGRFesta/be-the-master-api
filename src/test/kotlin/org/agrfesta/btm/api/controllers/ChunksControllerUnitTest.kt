@@ -284,7 +284,7 @@ class ChunksControllerUnitTest(
         verify(exactly = 0) { embeddingsDao.persist(any(), any()) }
         verify(exactly = 0) { translationsDao.setEmbeddingStatus(any(), any()) }
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-        response.message shouldBe "Unable to fetch chunk!"
+        response.message shouldBe "Unable to replace chunk $uuid!"
     }
 
     @Test fun `update() Returns 500 when embedding removal fails`() {
