@@ -5,16 +5,28 @@ import arrow.core.Either.Right
 import arrow.core.flatMap
 import arrow.core.left
 import arrow.core.right
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import jakarta.validation.Valid
+import jakarta.validation.constraints.DecimalMax
+import jakarta.validation.constraints.DecimalMin
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotEmpty
+import jakarta.validation.constraints.Positive
+import jakarta.validation.constraints.Size
 import kotlinx.coroutines.runBlocking
+import org.agrfesta.btm.api.controllers.config.MessageResponse
+import org.agrfesta.btm.api.controllers.config.NonBlankStringSetDeserializer
+import org.agrfesta.btm.api.controllers.config.toResponseEntity
 import org.agrfesta.btm.api.model.Embedding
 import org.agrfesta.btm.api.model.EmbeddingCreationFailure
+import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.model.MissingChunk
 import org.agrfesta.btm.api.model.PersistenceFailure
+import org.agrfesta.btm.api.model.Topic
 import org.agrfesta.btm.api.services.ChunksService
 import org.agrfesta.btm.api.services.Embedder
 import org.agrfesta.btm.api.services.EmbeddingsProvider
 import org.springframework.http.ResponseEntity
-import org.springframework.http.ResponseEntity.badRequest
 import org.springframework.http.ResponseEntity.internalServerError
 import org.springframework.http.ResponseEntity.ok
 import org.springframework.http.ResponseEntity.status
@@ -51,23 +63,19 @@ class ChunksController(
      *         500 Internal Server Error if persistence fails during chunk creation or translation.
      */
     @PostMapping
-    fun createChunks(@RequestBody request: ChunksCreationRequest): ResponseEntity<Any> = request.validate()
-        .flatMap { valid ->
-            valid.texts.forEach {
-                when (val insertResult = chunksService.createChunk(valid.game, valid.topic)) {
-                    is Left -> {/* for the moment ignores it, but we should implement a retry queue */}
-                    is Right -> {
-                        val chunkId = insertResult.value
-                        chunksService.replaceTranslation(chunkId, valid.language, it,
-                            if (request.embed != false) embedder else null)
-                    }
+    fun createChunks(@Valid @RequestBody request: ChunksCreationRequest): ResponseEntity<Any> {
+        request.texts.forEach {
+            when (val insertResult = chunksService.createChunk(request.game, request.topic)) {
+                is Left -> {/* for the moment ignores it, but we should implement a retry queue */}
+                is Right -> {
+                    val chunkId = insertResult.value
+                    chunksService.replaceTranslation(chunkId, request.language, it,
+                        if (request.embed != false) embedder else null)
                 }
             }
-            "${valid.texts.size} Chunks successfully persisted!".right()
-        }.fold(
-            ifLeft = { badRequest().body(MessageResponse(it.message)) },
-            ifRight = { ok().body(MessageResponse(it)) }
-        )
+        }
+        return ok().body(MessageResponse("${request.texts.size} Chunks successfully persisted!"))
+    }
 
     /**
      * PATCH /chunks/{id}
@@ -83,10 +91,7 @@ class ChunksController(
      *         500 Internal Server Error if persistence or embedding fails.
      */
     @PatchMapping("/{id}")
-    fun update(@PathVariable id: UUID, @RequestBody request: ChunkTranslationPatchRequest): ResponseEntity<Any> {
-        if (request.text.isBlank()) {
-            return badRequest().body(MessageResponse("Text must not be empty!"))
-        }
+    fun update(@PathVariable id: UUID, @Valid @RequestBody request: ChunkTranslationPatchRequest): ResponseEntity<Any> {
         return chunksService.findChunk(id).flatMap {
             if (it == null) MissingChunk.left()
             else chunksService.replaceTranslation(
@@ -122,44 +127,71 @@ class ChunksController(
      *         500 Internal Server Error on processing failure.
      */
     @PostMapping("/similarity-search")
-    fun similaritySearch(@RequestBody request: ChunkSearchBySimilarityRequest): ResponseEntity<Any> = request.validate()
-        .flatMap { valid ->
-            chunksService.searchBySimilarity(
-                valid.text,
-                valid.game,
-                valid.topic,
-                valid.language,
+    fun similaritySearch(@Valid @RequestBody request: ChunkSearchBySimilarityRequest): ResponseEntity<Any> {
+            return chunksService.searchBySimilarity(
+                request.text,
+                request.game,
+                request.topic,
+                request.language,
                 embedder,
-                valid.embeddingsLimit,
-                valid.distanceLimit
-            ).flatMap { result ->
-                    result.map { it.toSimilarityResultItem() }.right()
-                }
-        }.toResponseEntity()
+                request.embeddingsLimit,
+                request.distanceLimit
+            ).flatMap { result -> result.map { it.toSimilarityResultItem() }.right() }
+                .toResponseEntity()
+        }
 
 }
 
 data class ChunksCreationRequest(
-    val game: String?,
-    val topic: String?,
-    val language: String?,
-    val texts: List<String>?,
+
+    val game: Game,
+
+    val topic: Topic,
+
+    @field:NotBlank(message = "language must not be blank and two charters long!")
+    @field:Size(min = 2, max = 2, message = "language must not be blank and two charters long!")
+    val language: String,
+
+    @field:JsonDeserialize(using = NonBlankStringSetDeserializer::class)
+    @field:NotEmpty(message = "No chunks to create!")
+    val texts: Set<String>,
+
     val embed: Boolean?
+
 )
 
 data class ChunkTranslationPatchRequest(
+
+    @field:NotBlank(message = "text must not be blank!")
     val text: String,
+
+    @field:NotBlank(message = "language must not be blank and two charters long!")
+    @field:Size(min = 2, max = 2, message = "language must not be blank and two charters long!")
     val language: String,
+
     val inBatch: Boolean = false
 )
 
 data class ChunkSearchBySimilarityRequest(
-    val game: String,
-    val topic: String,
+
+    val game: Game,
+
+    val topic: Topic,
+
+    @field:NotBlank(message = "text must not be blank!")
     val text: String,
+
+    @field:NotBlank(message = "language must not be blank and two charters long!")
+    @field:Size(min = 2, max = 2, message = "language must not be blank and two charters long!")
     val language: String,
+
+    @field:Positive(message = "embeddingsLimit must be a positive Int!")
     val embeddingsLimit: Int?,
+
+    @field:DecimalMin(value = "0.0", inclusive = false, message = "distanceLimit must be in (0.0 ; 2.0)!")
+    @field:DecimalMax(value = "2.0", inclusive = false, message = "distanceLimit must be in (0.0 ; 2.0)!")
     val distanceLimit: Double?
+
 )
 
 data class SimilarityResultItem(

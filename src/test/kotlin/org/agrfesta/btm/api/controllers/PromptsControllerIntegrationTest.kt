@@ -106,17 +106,49 @@ class PromptsControllerIntegrationTest(
             .statusCode(200)
             .extract().asString()
 
-//        val regex = Regex("""(?s).*?: \[(.*?)](?:,|, ) .*?: \[(.*?)]""")
-//        val match = regex.find(result)
-//        match?.groups?.get(1)?.value shouldBe "$chunkC\n$chunkB"
-//        match?.groups?.get(2)?.value shouldBe prompt
-
         val regex = Regex("""\[(.*?)]""", RegexOption.DOT_MATCHES_ALL)
         val matches = regex.findAll(result).toList()
         val question = matches.getOrNull(0)?.groups?.get(1)?.value
         question shouldBe prompt
         val context = matches.getOrNull(1)?.groups?.get(1)?.value
         context shouldBe "$chunkC\n$chunkB"
+    }
+
+    @Test
+    fun `enhanceBasicPrompt() Enhances basic prompt with no chunks when first is too big`() {
+        val target = anEmbedding()
+        val chunkA = aRandomUniqueString()
+        val chunkB = aRandomUniqueString()
+        val embeddingA = generateVectorWithDistance(target, 0.02)
+        val embeddingB = generateVectorWithDistance(target, 0.25)
+        val requestJson = aBasicPromptEnhanceRequestJson(
+            prompt = prompt,
+            game = game.name,
+            topic = topic.name,
+            language = language.name,
+            maxTokens = 600
+        )
+        givenChunkEmbedding(game, topic, language = language.name, text = chunkA, embeddingA)
+        givenChunkEmbedding(game, topic, language = language.name, text = chunkB, embeddingB)
+        coEvery { embeddingsProvider.createEmbedding(prompt) } returns target.right()
+        every { tokenizer.countTokens(chunkB) } returns 1.right()
+        every { tokenizer.countTokens(chunkA) } returns 700.right()
+
+        val result = given()
+            .contentType(ContentType.JSON)
+            .body(requestJson)
+            .`when`()
+            .post("/prompts/enhance/basic")
+            .then()
+            .statusCode(200)
+            .extract().asString()
+
+        val regex = Regex("""\[(.*?)]""", RegexOption.DOT_MATCHES_ALL)
+        val matches = regex.findAll(result).toList()
+        val question = matches.getOrNull(0)?.groups?.get(1)?.value
+        question shouldBe prompt
+        val context = matches.getOrNull(1)?.groups?.get(1)?.value
+        context shouldBe ""
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
