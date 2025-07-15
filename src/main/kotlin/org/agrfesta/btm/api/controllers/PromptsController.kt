@@ -3,17 +3,21 @@ package org.agrfesta.btm.api.controllers
 import arrow.core.Either
 import arrow.core.Either.Left
 import arrow.core.Either.Right
-import arrow.core.align
 import arrow.core.flatMap
 import arrow.core.left
 import arrow.core.right
+import jakarta.validation.Valid
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Positive
 import kotlinx.coroutines.runBlocking
+import org.agrfesta.btm.api.controllers.config.toResponseEntity
 import org.agrfesta.btm.api.model.BtmConfigurationFailure
 import org.agrfesta.btm.api.model.BtmFlowFailure
 import org.agrfesta.btm.api.model.Embedding
 import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.model.PersistenceFailure
 import org.agrfesta.btm.api.model.SupportedLanguage
+import org.agrfesta.btm.api.model.Topic
 import org.agrfesta.btm.api.persistence.EmbeddingsDao
 import org.agrfesta.btm.api.persistence.PartiesDao
 import org.agrfesta.btm.api.persistence.jdbc.repositories.GlossariesRepository
@@ -156,34 +160,32 @@ class PromptsController(
      * @return 200 OK with the final enhanced prompt, or error response in case of validation or processing failure.
      */
     @PostMapping("/enhance/basic")
-    fun enhanceBasicPrompt(@RequestBody request: BasicPromptEnhanceRequest): ResponseEntity<Any> =
-        request.validate()
-            .flatMap { validated ->
-                runBlocking {
-                    logger.info("Creating prompt embedding...")
-                    embeddingsProvider.createEmbedding(validated.prompt)
+    fun enhanceBasicPrompt(@Valid @RequestBody request: BasicPromptEnhanceRequest): ResponseEntity<Any> {
+        return runBlocking {
+            logger.info("Creating prompt embedding...")
+            embeddingsProvider.createEmbedding(request.prompt)
+        }
+            .flatMap { target ->
+                val result = try {
+                    logger.info("Searching similar chunks...")
+                    embeddingsDao.searchBySimilarity(target, request.game, request.topic,
+                        request.language.name,
+                        DEFAULT_EMBEDDINGS_LIMIT,
+                        DEFAULT_DISTANCE_LIMIT
+                    ).also {
+                        logger.info("Found ${it.size} chunks")
+                    }.right()
+                } catch (e: Exception) {
+                    PersistenceFailure("Search by similarity failed!", e).left()
                 }
-                    .flatMap { target ->
-                        val result = try {
-                            logger.info("Searching similar chunks...")
-                            embeddingsDao.searchBySimilarity(target, validated.game, validated.topic,
-                                validated.language.name,
-                                DEFAULT_EMBEDDINGS_LIMIT,
-                                DEFAULT_DISTANCE_LIMIT
-                            ).also {
-                                logger.info("Found ${it.size} chunks")
-                            }.right()
-                        } catch (e: Exception) {
-                            PersistenceFailure("Search by similarity failed!", e).left()
-                        }
-                        result.flatMap {
-                            enhancePrompt(validated, it)
-                        }
-                    }
-        }.toResponseEntity()
+                result.flatMap {
+                    enhancePrompt(request, it)
+                }
+            }.toResponseEntity()
+    }
 
     private fun enhancePrompt(
-        request: ValidBasicPromptEnhanceRequest,
+        request: BasicPromptEnhanceRequest,
         context: List<Pair<String,Double>>
     ): Either<BtmFlowFailure, String> {
         val chunks = context.map { it.first }
@@ -218,9 +220,15 @@ data class PromptEnhanceRequest(val partyId: UUID, val prompt: String)
 data class TranslationPromptRequest(val game: Game, val text: String)
 
 data class BasicPromptEnhanceRequest(
-    val prompt: String?,
-    val game: String?,
-    val topic: String?,
-    val language: String?,
-    val maxTokens: Int?
+    val game: Game,
+
+    val topic: Topic,
+
+    @field:NotBlank(message = "prompt must not be blank!")
+    val prompt: String,
+
+    val language: SupportedLanguage,
+
+    @field:Positive(message = "maxTokens must be a positive Int!")
+    val maxTokens: Int
 )
