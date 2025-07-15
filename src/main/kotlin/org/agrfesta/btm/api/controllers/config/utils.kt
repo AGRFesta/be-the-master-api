@@ -1,4 +1,4 @@
-package org.agrfesta.btm.api.controllers
+package org.agrfesta.btm.api.controllers.config
 
 import arrow.core.Either
 import org.agrfesta.btm.api.model.BtmConfigurationFailure

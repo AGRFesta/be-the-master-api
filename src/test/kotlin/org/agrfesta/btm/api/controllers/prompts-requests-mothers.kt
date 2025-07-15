@@ -7,7 +7,7 @@ fun aBasicPromptEnhanceRequestJson(
     topic: String? = aTopic().name,
     language: String? = aSupportedLanguage().name,
     prompt: String? = aRandomUniqueString(),
-    maxTokens: Int? = null
+    maxTokens: Int? = 8_999
 ): String {
     val properties = buildList {
         game?.let { add(""""game": "$it"""") }

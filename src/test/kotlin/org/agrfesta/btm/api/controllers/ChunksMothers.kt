@@ -43,6 +43,24 @@ fun aChunksCreationRequestJson(
     )
 }
 
+fun aChunkTranslationsPatchRequestJson(
+    text: String? = aRandomUniqueString(),
+    language: String? = aLanguage(),
+    inBatch: Boolean? = true
+): String {
+    val properties = buildList {
+        text?.let { add(""""text": "$it"""") }
+        language?.let { add(""""language": "$language"""") }
+        inBatch?.let { add(""""embed": $inBatch""") }
+    }
+
+    return properties.joinToString(
+        separator = ",\n    ",
+        prefix = "{\n    ",
+        postfix = "\n}"
+    )
+}
+
 fun Collection<String>.toJsonStringArray(): String = joinToString(
     prefix = "[",
     postfix = "]",
@@ -70,7 +88,7 @@ fun aChunkSearchBySimilarityRequest(
     text: String = aRandomUniqueString(),
     embeddingsLimit: Int? = null,
     distanceLimit: Double? = null
-) = ChunkSearchBySimilarityRequest(game.name, topic.name, text, language, embeddingsLimit, distanceLimit)
+) = ChunkSearchBySimilarityRequest(game, topic, text, language, embeddingsLimit, distanceLimit)
 
 fun aChunkSearchBySimilarityRequestJson(
     game: String? = aGame().name,
@@ -97,4 +115,4 @@ fun aChunkSearchBySimilarityRequestJson(
 }
 
 fun ChunkSearchBySimilarityRequest.toJsonString() =
-    aChunkSearchBySimilarityRequestJson(game, topic, language, text)
+    aChunkSearchBySimilarityRequestJson(game.name, topic.name, language, text)
