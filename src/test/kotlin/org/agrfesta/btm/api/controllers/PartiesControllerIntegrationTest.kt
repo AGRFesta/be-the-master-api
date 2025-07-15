@@ -7,6 +7,7 @@ import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.restassured.RestAssured.given
 import io.restassured.http.ContentType
+import org.agrfesta.btm.api.controllers.config.MessageResponse
 import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.persistence.jdbc.repositories.PartiesRepository
 import org.agrfesta.btm.api.services.utils.RandomGenerator

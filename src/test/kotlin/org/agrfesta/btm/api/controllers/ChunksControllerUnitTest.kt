@@ -9,6 +9,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.verify
+import org.agrfesta.btm.api.controllers.config.MessageResponse
 import org.agrfesta.btm.api.model.EmbeddingCreationFailure
 import org.agrfesta.btm.api.model.EmbeddingStatus.EMBEDDED
 import org.agrfesta.btm.api.model.PersistenceFailure
@@ -51,6 +52,21 @@ class ChunksControllerUnitTest(
 
     ///// createChunks /////////////////////////////////////////////////////////////////////////////////////////////////
 
+    @Test fun `createChunks() Returns 400 when texts is missing`() {
+        val responseBody: String = mockMvc.perform(
+            post("/chunks")
+                .contentType("application/json")
+                .content(aChunksCreationRequestJson(texts = null)))
+            .andExpect(status().isBadRequest)
+            .andReturn().response.contentAsString
+
+        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
+        asserter.verifyNoTranslationsPersisted()
+        asserter.verifyNoEmbeddingsPersisted()
+        val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+        response.message shouldBe "texts is missing!"
+    }
+
     @Test fun `createChunks() Returns 400 when texts is empty`() {
         val responseBody: String = mockMvc.perform(
             post("/chunks")
@@ -66,8 +82,24 @@ class ChunksControllerUnitTest(
         response.message shouldBe "No chunks to create!"
     }
 
+    @Test fun `createChunks() Returns 400 when language is missing`() {
+        val request = aChunksCreationRequestJson(language = null)
+        val responseBody: String = mockMvc.perform(
+            post("/chunks")
+                .contentType("application/json")
+                .content(request))
+            .andExpect(status().isBadRequest)
+            .andReturn().response.contentAsString
+
+        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
+        asserter.verifyNoTranslationsPersisted()
+        asserter.verifyNoEmbeddingsPersisted()
+        val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+        response.message shouldBe "language is missing!"
+    }
+
     @TestFactory
-    fun `createChunks() Returns 400 when language is not valid`() = listOf(null, "", " ", "  ", "i", "ita").map {
+    fun `createChunks() Returns 400 when language is not valid`() = listOf("", " ", "  ", "i", "ita").map {
         dynamicTest(" -> '$it'") {
             val request = aChunksCreationRequestJson(language = it)
             val responseBody: String = mockMvc.perform(
@@ -81,12 +113,12 @@ class ChunksControllerUnitTest(
             asserter.verifyNoTranslationsPersisted()
             asserter.verifyNoEmbeddingsPersisted()
             val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-            response.message shouldBe "Language must not be blank and two charters long!"
+            response.message shouldBe "language must not be blank and two charters long!"
         }
     }
 
     @TestFactory
-    fun `createChunks() Returns 400 when game is missing`() = listOf("", null).map {
+    fun `createChunks() Returns 400 when game is missing`() = listOf(null).map {
             dynamicTest(" -> '$it'") {
                 val requestJson = aChunksCreationRequestJson(game = it)
                 val responseBody: String = mockMvc.perform(
@@ -100,7 +132,7 @@ class ChunksControllerUnitTest(
                 asserter.verifyNoTranslationsPersisted()
                 asserter.verifyNoEmbeddingsPersisted()
                 val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-                response.message shouldBe "Game is missing!"
+                response.message shouldBe "game is missing!"
             }
         }
 
@@ -117,11 +149,11 @@ class ChunksControllerUnitTest(
         asserter.verifyNoTranslationsPersisted()
         asserter.verifyNoEmbeddingsPersisted()
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-        response.message shouldBe "Game is not valid!"
+        response.message shouldBe "game is not valid!"
     }
 
     @TestFactory
-    fun `createChunks() Returns 400 when topic is missing`() = listOf("", null).map {
+    fun `createChunks() Returns 400 when topic is missing`() = listOf(null).map {
         dynamicTest(" -> '$it'") {
             val requestJson = aChunksCreationRequestJson(topic = it)
             val responseBody: String = mockMvc.perform(
@@ -135,7 +167,7 @@ class ChunksControllerUnitTest(
             asserter.verifyNoTranslationsPersisted()
             asserter.verifyNoEmbeddingsPersisted()
             val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-            response.message shouldBe "Topic is missing!"
+            response.message shouldBe "topic is missing!"
         }
     }
 
@@ -152,7 +184,7 @@ class ChunksControllerUnitTest(
         asserter.verifyNoTranslationsPersisted()
         asserter.verifyNoEmbeddingsPersisted()
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-        response.message shouldBe "Topic is not valid!"
+        response.message shouldBe "topic is not valid!"
     }
 
     @Test fun `createChunks() Ignores failures persisting embeddings but mark chunk as not embedded`() {
@@ -250,6 +282,43 @@ class ChunksControllerUnitTest(
 
     ///// update ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    @Test fun `update() Returns 400 when language is missing`() {
+        val request = aChunkTranslationsPatchRequestJson(language = null)
+        val responseBody: String = mockMvc.perform(
+            patch("/chunks/${UUID.randomUUID()}")
+                .contentType("application/json")
+                .content(request))
+            .andExpect(status().isBadRequest)
+            .andReturn().response.contentAsString
+
+        verify(exactly = 0) { chunksDao.persist(any(), any()) }
+        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
+        verify(exactly = 0) { embeddingsDao.persist(any(), any()) }
+        verify(exactly = 0) { translationsDao.setEmbeddingStatus(any(), any()) }
+        val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+        response.message shouldBe "language is missing!"
+    }
+
+    @TestFactory
+    fun `update() Returns 400 when language is not valid`() = listOf("", " ", "  ", "i", "ita").map {
+        dynamicTest(" -> '$it'") {
+            val request = aChunkTranslationsPatchRequestJson(language = it)
+            val responseBody: String = mockMvc.perform(
+                patch("/chunks/${UUID.randomUUID()}")
+                    .contentType("application/json")
+                    .content(request))
+                .andExpect(status().isBadRequest)
+                .andReturn().response.contentAsString
+
+            verify(exactly = 0) { chunksDao.persist(any(), any()) }
+            coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
+            verify(exactly = 0) { embeddingsDao.persist(any(), any()) }
+            verify(exactly = 0) { translationsDao.setEmbeddingStatus(any(), any()) }
+            val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+            response.message shouldBe "language must not be blank and two charters long!"
+        }
+    }
+
     @TestFactory
     fun `update() returns 400 when new text is empty`() = listOf("", " ", "  ", "    ").map {
         dynamicTest(" -> '$it'") {
@@ -266,7 +335,7 @@ class ChunksControllerUnitTest(
             verify(exactly = 0) { embeddingsDao.persist(any(), any()) }
             verify(exactly = 0) { translationsDao.setEmbeddingStatus(any(), any()) }
             val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-            response.message shouldBe "Text must not be empty!"
+            response.message shouldBe "text must not be blank!"
         }
     }
 
@@ -324,7 +393,7 @@ class ChunksControllerUnitTest(
 
             verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any(), any(), any()) }
             val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-            response.message shouldBe "Text must not be blank!"
+            response.message shouldBe "text must not be blank!"
         }
     }
 
@@ -341,7 +410,7 @@ class ChunksControllerUnitTest(
 
             verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any(), any(), any()) }
             val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-            response.message shouldBe "Language must not be blank and two charters long!"
+            response.message shouldBe "language must not be blank and two charters long!"
         }
     }
 
@@ -356,12 +425,12 @@ class ChunksControllerUnitTest(
 
         verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any(), any(), any()) }
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-        response.message shouldBe "Game is not valid!"
+        response.message shouldBe "game is not valid!"
     }
 
     @TestFactory
     fun `similaritySearch() returns 400 when Game is missing`() =
-        listOf("").map { //TODO add null case
+        listOf(null).map {
             dynamicTest(" -> '$it'") {
                 val requestJson = aChunkSearchBySimilarityRequestJson(game = it)
                 val responseBody: String = mockMvc.perform(
@@ -373,7 +442,7 @@ class ChunksControllerUnitTest(
 
                 verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any(), any(), any()) }
                 val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-                response.message shouldBe "Game is missing!"
+                response.message shouldBe "game is missing!"
             }
         }
 
@@ -388,12 +457,12 @@ class ChunksControllerUnitTest(
 
         verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any(), any(), any()) }
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-        response.message shouldBe "Topic is not valid!"
+        response.message shouldBe "topic is not valid!"
     }
 
     @TestFactory
     fun `similaritySearch() returns 400 when Topic is missing`() =
-        listOf("").map { //TODO add null case
+        listOf(null).map {
             dynamicTest(" -> '$it'") {
                 val requestJson = aChunkSearchBySimilarityRequestJson(topic = it)
                 val responseBody: String = mockMvc.perform(
@@ -405,7 +474,7 @@ class ChunksControllerUnitTest(
 
                 verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any(), any(), any()) }
                 val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-                response.message shouldBe "Topic is missing!"
+                response.message shouldBe "topic is missing!"
             }
         }
 
@@ -423,7 +492,7 @@ class ChunksControllerUnitTest(
 
                 verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any(), any(), any()) }
                 val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-                response.message shouldBe "'embeddingsLimit' must be a positive Int!"
+                response.message shouldBe "embeddingsLimit must be a positive Int!"
             }
         }
 
@@ -441,7 +510,7 @@ class ChunksControllerUnitTest(
 
                 verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any(), any(), any()) }
                 val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-                response.message shouldBe "'distanceLimit' must be in (0.0 ; 2.0)!"
+                response.message shouldBe "distanceLimit must be in (0.0 ; 2.0)!"
             }
         }
 

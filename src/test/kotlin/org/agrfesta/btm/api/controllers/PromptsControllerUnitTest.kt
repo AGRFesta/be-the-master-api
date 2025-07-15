@@ -8,6 +8,7 @@ import io.kotest.matchers.shouldBe
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.verify
+import org.agrfesta.btm.api.controllers.config.MessageResponse
 import org.agrfesta.btm.api.model.EmbeddingCreationFailure
 import org.agrfesta.btm.api.model.TokenCountFailure
 import org.agrfesta.btm.api.persistence.EmbeddingsDao
@@ -47,8 +48,22 @@ class PromptsControllerUnitTest(
 
     ///// enhanceBasicPrompt ///////////////////////////////////////////////////////////////////////////////////////////
 
+    @Test
+    fun `enhanceBasicPrompt() Returns 400 when prompt is missing`() {
+        val requestJson = aBasicPromptEnhanceRequestJson(prompt = null)
+        val responseBody: String = mockMvc.perform(
+            post("/prompts/enhance/basic")
+                .contentType("application/json")
+                .content(requestJson))
+            .andExpect(status().isBadRequest)
+            .andReturn().response.contentAsString
+
+        val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+        response.message shouldBe "prompt is missing!"
+    }
+
     @TestFactory
-    fun `enhanceBasicPrompt() returns 400 when prompt is blank`() = listOf(null, "", " ", "  ", "    ").map {
+    fun `enhanceBasicPrompt() returns 400 when prompt is blank`() = listOf("", " ", "  ", "    ").map {
         dynamicTest(" -> '$it'") {
             val request = aBasicPromptEnhanceRequestJson(prompt = it)
             val responseBody: String = mockMvc.perform(
@@ -59,24 +74,22 @@ class PromptsControllerUnitTest(
                 .andReturn().response.contentAsString
 
             val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-            response.message shouldBe "Prompt must not be blank!"
+            response.message shouldBe "prompt must not be blank!"
         }
     }
 
-    @TestFactory
-    fun `enhanceBasicPrompt() Returns 400 when language is missing`() = listOf("", null).map {
-        dynamicTest(" -> '$it'") {
-            val requestJson = aBasicPromptEnhanceRequestJson(language = it)
-            val responseBody: String = mockMvc.perform(
-                post("/prompts/enhance/basic")
-                    .contentType("application/json")
-                    .content(requestJson))
-                .andExpect(status().isBadRequest)
-                .andReturn().response.contentAsString
+    @Test
+    fun `enhanceBasicPrompt() Returns 400 when language is missing`() {
+        val requestJson = aBasicPromptEnhanceRequestJson(language = null)
+        val responseBody: String = mockMvc.perform(
+            post("/prompts/enhance/basic")
+                .contentType("application/json")
+                .content(requestJson))
+            .andExpect(status().isBadRequest)
+            .andReturn().response.contentAsString
 
-            val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-            response.message shouldBe "Language is missing!"
-        }
+        val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+        response.message shouldBe "language is missing!"
     }
 
     @Test fun `enhanceBasicPrompt() Returns 400 when language is not valid`() {
@@ -89,11 +102,27 @@ class PromptsControllerUnitTest(
             .andReturn().response.contentAsString
 
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-        response.message shouldBe "Language is not valid!"
+        response.message shouldBe "language is not valid!"
     }
 
     @TestFactory
-    fun `enhanceBasicPrompt() Returns 400 when game is missing`() = listOf("", null).map {
+    fun `enhanceBasicPrompt()  returns 400 when maxTokens is not valid`() = listOf(Int.MIN_VALUE, -1, 0).map {
+        dynamicTest(" -> '$it'") {
+            val requestJson = aBasicPromptEnhanceRequestJson(maxTokens = it)
+            val responseBody: String = mockMvc.perform(
+                post("/prompts/enhance/basic")
+                    .contentType("application/json")
+                    .content(requestJson))
+                .andExpect(status().isBadRequest)
+                .andReturn().response.contentAsString
+
+            val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+            response.message shouldBe "maxTokens must be a positive Int!"
+        }
+    }
+
+    @TestFactory
+    fun `enhanceBasicPrompt() Returns 400 when game is missing`() = listOf(null).map {
         dynamicTest(" -> '$it'") {
             val requestJson = aBasicPromptEnhanceRequestJson(game = it)
             val responseBody: String = mockMvc.perform(
@@ -104,7 +133,7 @@ class PromptsControllerUnitTest(
                 .andReturn().response.contentAsString
 
             val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-            response.message shouldBe "Game is missing!"
+            response.message shouldBe "game is missing!"
         }
     }
 
@@ -118,11 +147,11 @@ class PromptsControllerUnitTest(
             .andReturn().response.contentAsString
 
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-        response.message shouldBe "Game is not valid!"
+        response.message shouldBe "game is not valid!"
     }
 
     @TestFactory
-    fun `enhanceBasicPrompt() Returns 400 when topic is missing`() = listOf("", null).map {
+    fun `enhanceBasicPrompt() Returns 400 when topic is missing`() = listOf(null).map {
         dynamicTest(" -> '$it'") {
             val requestJson = aBasicPromptEnhanceRequestJson(topic = it)
             val responseBody: String = mockMvc.perform(
@@ -133,7 +162,7 @@ class PromptsControllerUnitTest(
                 .andReturn().response.contentAsString
 
             val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-            response.message shouldBe "Topic is missing!"
+            response.message shouldBe "topic is missing!"
         }
     }
 
@@ -147,7 +176,7 @@ class PromptsControllerUnitTest(
             .andReturn().response.contentAsString
 
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-        response.message shouldBe "Topic is not valid!"
+        response.message shouldBe "topic is not valid!"
     }
 
     @Test fun `enhanceBasicPrompt() Returns 500 when fails to create prompt embedding`() {
