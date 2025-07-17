@@ -1,6 +1,7 @@
 package org.agrfesta.btm.api.persistence.jdbc
 
 import org.agrfesta.btm.api.model.EmbeddingStatus
+import org.agrfesta.btm.api.model.SupportedLanguage
 import org.agrfesta.btm.api.model.Translation
 import org.agrfesta.btm.api.persistence.TranslationsDao
 import org.agrfesta.btm.api.persistence.jdbc.entities.TranslationEntity
@@ -29,28 +30,28 @@ class TranslationsDaoJdbcImpl(
             id = id,
             chunkId = chunkId,
             text = translation.text,
-            languageCode = translation.language,
+            language = translation.language,
             embeddingStatus = EmbeddingStatus.UNEMBEDDED,
             createdOn = now
         ))
         return id
     }
 
-    override fun findTranslationByLanguage(chunkId: UUID, language: String): Translation? =
+    override fun findTranslationByLanguage(chunkId: UUID, language: SupportedLanguage): Translation? =
         translationsRepo.findTranslationByLanguage(chunkId, language)?.let {
-            Translation(text = it.text, language = it.languageCode)
+            Translation(text = it.text, language = it.language)
         }
 
     override fun findTranslations(chunkId: UUID): Collection<Translation> =
         translationsRepo.findTranslations(chunkId).map {
-            Translation(text = it.text, language = it.languageCode)
+            Translation(text = it.text, language = it.language)
         }
 
     override fun setEmbeddingStatus(translationId: UUID, embeddingStatus: EmbeddingStatus) {
         translationsRepo.update(translationId, embeddingStatus = embeddingStatus)
     }
 
-    override fun addOrReplace(chunkId: UUID, language: String, newText: String): UUID {
+    override fun addOrReplace(chunkId: UUID, language: SupportedLanguage, newText: String): UUID {
         val translation = translationsRepo.findTranslationByLanguage(chunkId, language)
         return if (translation != null) {
             embeddingRepo.deleteByTranslationId(translation.id)
@@ -60,7 +61,7 @@ class TranslationsDaoJdbcImpl(
                 TranslationEntity(
                     id = uuid,
                     chunkId = chunkId,
-                    languageCode = language,
+                    language = language,
                     text = newText,
                     embeddingStatus = EmbeddingStatus.UNEMBEDDED,
                     createdOn = timeService.nowNoNano()

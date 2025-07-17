@@ -78,7 +78,7 @@ class EmbeddingRepository(
      * @param target the target embedding vector to search around.
      * @param game the game (as enum) to filter by.
      * @param topic the topic (as enum) to filter by.
-     * @param languageCode the language code to filter by (e.g., "en", "it").
+     * @param language the language (as enum) to filter by.
      * @param limit maximum number of results to return.
      * @return list of (text, distance) pairs sorted by ascending distance.
      */
@@ -86,7 +86,7 @@ class EmbeddingRepository(
         target: FloatArray,
         game: String,
         topic: String,
-        languageCode: String,
+        language: String,
         limit: Int
     ): List<Pair<String, Double>> {
         val sql = """
@@ -96,7 +96,7 @@ class EmbeddingRepository(
             JOIN btm.chunks tb ON t.chunk_id = tb.id
             WHERE tb.game = CAST(:game AS game_enum)
               AND tb.topic = CAST(:topic AS topic_enum)
-              AND t.language_code = :languageCode
+              AND t.language = CAST(:language AS supported_language_enum)
             ORDER BY distance ASC
             LIMIT :limit
         """.trimIndent()
@@ -104,7 +104,7 @@ class EmbeddingRepository(
         val params = MapSqlParameterSource(mapOf(
             "game" to game,
             "topic" to topic,
-            "languageCode" to languageCode,
+            "language" to language,
             "target" to PGvector(target),
             "limit" to limit
         ))

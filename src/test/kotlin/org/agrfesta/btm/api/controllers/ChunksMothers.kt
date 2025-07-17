@@ -11,7 +11,7 @@ import kotlin.collections.Collection
 
 fun aGame() = Game.entries.random()
 fun aTopic() = Topic.entries.random()
-fun aLanguage() = aRandomUniqueString().take(2)
+fun aLanguage() = SupportedLanguage.entries.random()
 fun aSupportedLanguage() = SupportedLanguage.entries.random()
 
 fun aChunk(
@@ -24,7 +24,7 @@ fun aChunk(
 fun aChunksCreationRequestJson(
     game: String? = aGame().name,
     topic: String? = aTopic().name,
-    language: String? = aLanguage(),
+    language: String? = aLanguage().name,
     texts: List<String>? = List(3) { aRandomUniqueString() },
     embed: Boolean? = true
 ): String {
@@ -45,7 +45,7 @@ fun aChunksCreationRequestJson(
 
 fun aChunkTranslationsPatchRequestJson(
     text: String? = aRandomUniqueString(),
-    language: String? = aLanguage(),
+    language: String? = aLanguage().name,
     inBatch: Boolean? = true
 ): String {
     val properties = buildList {
@@ -69,7 +69,7 @@ fun Collection<String>.toJsonStringArray(): String = joinToString(
 
 fun aChunkTranslationsPatchRequest(
     text: String = aRandomUniqueString(),
-    language: String = aLanguage(),
+    language: SupportedLanguage = aLanguage(),
     inBatch: Boolean = false
 ) = ChunkTranslationPatchRequest(text, language, inBatch)
 
@@ -84,7 +84,7 @@ fun ChunkTranslationPatchRequest.toJsonString() = """
 fun aChunkSearchBySimilarityRequest(
     game: Game = aGame(),
     topic: Topic = aTopic(),
-    language: String = aLanguage(),
+    language: SupportedLanguage = aLanguage(),
     text: String = aRandomUniqueString(),
     embeddingsLimit: Int? = null,
     distanceLimit: Double? = null
@@ -93,7 +93,7 @@ fun aChunkSearchBySimilarityRequest(
 fun aChunkSearchBySimilarityRequestJson(
     game: String? = aGame().name,
     topic: String? = aTopic().name,
-    language: String? = aLanguage(),
+    language: String? = aLanguage().name,
     text: String? = aRandomUniqueString(),
     embeddingsLimit: Int? = null,
     distanceLimit: Double? = null
@@ -115,4 +115,4 @@ fun aChunkSearchBySimilarityRequestJson(
 }
 
 fun ChunkSearchBySimilarityRequest.toJsonString() =
-    aChunkSearchBySimilarityRequestJson(game.name, topic.name, language, text)
+    aChunkSearchBySimilarityRequestJson(game.name, topic.name, language.name, text)

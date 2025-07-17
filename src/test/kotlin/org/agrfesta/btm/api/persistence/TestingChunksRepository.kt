@@ -2,6 +2,7 @@ package org.agrfesta.btm.api.persistence
 
 import com.pgvector.PGvector
 import org.agrfesta.btm.api.model.Embedding
+import org.agrfesta.btm.api.model.SupportedLanguage
 import org.springframework.jdbc.core.RowMapper
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
@@ -23,14 +24,14 @@ class TestingChunksRepository(
     }
 
     fun getTranslationWithEmbedding(
-        language: String,
+        language: SupportedLanguage,
         text: String
     ): TranslationWithEmbedding? {
         val sql = """
         SELECT 
             t.id AS translation_id,
             t.text,
-            t.language_code,
+            t.language,
             t.embedding_status,
             t.chunk_id,
             e.id AS embedding_id,
@@ -38,10 +39,10 @@ class TestingChunksRepository(
             e.created_on AS embedding_created_on
         FROM btm.translations t
         LEFT JOIN btm.embeddings e ON t.id = e.translation_id
-        WHERE t.language_code = :language 
+        WHERE t.language = CAST(:language AS supported_language_enum)
         AND t.text = :text;
     """.trimIndent()
-        val params = MapSqlParameterSource(mapOf("language" to language, "text" to text))
+        val params = MapSqlParameterSource(mapOf("language" to language.name, "text" to text))
         return jdbcTemplate.query(sql, params, TranslationWithEmbeddingRowMapper)
             .firstOrNull()
     }
@@ -66,7 +67,7 @@ object TranslationWithEmbeddingRowMapper: RowMapper<TranslationWithEmbedding> {
             translationId = UUID.fromString(rs.getString("translation_id")),
             chunkId = UUID.fromString(rs.getString("chunk_id")),
             text = rs.getString("text"),
-            languageCode = rs.getString("language_code"),
+            languageCode = rs.getString("language"),
             embeddingStatus = rs.getString("embedding_status"),
             embeddingId = rs.getString("embedding_id")?.let(UUID::fromString),
             vector = pgVec?.toArray(),

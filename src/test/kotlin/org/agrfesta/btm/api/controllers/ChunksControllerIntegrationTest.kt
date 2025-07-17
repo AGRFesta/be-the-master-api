@@ -19,6 +19,7 @@ import org.agrfesta.btm.api.model.EmbeddingCreationFailure
 import org.agrfesta.btm.api.model.EmbeddingStatus.EMBEDDED
 import org.agrfesta.btm.api.model.EmbeddingStatus.UNEMBEDDED
 import org.agrfesta.btm.api.model.Game
+import org.agrfesta.btm.api.model.SupportedLanguage
 import org.agrfesta.btm.api.model.Topic
 import org.agrfesta.btm.api.persistence.TestingChunksRepository
 import org.agrfesta.btm.api.persistence.jdbc.entities.TranslationEntity
@@ -80,7 +81,7 @@ class ChunksControllerIntegrationTest(
         val request = aChunksCreationRequestJson(
             game = game.name,
             topic = topic.name,
-            language = language,
+            language = language.name,
             embed = true,
             texts = listOf(textA, textB, textC))
         val embA = anEmbedding()
@@ -137,7 +138,7 @@ class ChunksControllerIntegrationTest(
         val request = aChunksCreationRequestJson(
             game = game.name,
             topic = topic.name,
-            language = language,
+            language = language.name,
             embed = true,
             texts = listOf(textA, textB, textC))
         val embA = anEmbedding()
@@ -182,7 +183,7 @@ class ChunksControllerIntegrationTest(
         val request = aChunksCreationRequestJson(
             game = game.name,
             topic = topic.name,
-            language = language,
+            language = language.name,
             embed = null,
             texts = listOf(textA, textB, textC, textD))
         val embA = anEmbedding()
@@ -230,7 +231,7 @@ class ChunksControllerIntegrationTest(
         val request = aChunksCreationRequestJson(
             game = game.name,
             topic = topic.name,
-            language = language,
+            language = language.name,
             embed = false,
             texts = listOf(textA, textB))
 
@@ -270,7 +271,7 @@ class ChunksControllerIntegrationTest(
         val request = aChunksCreationRequestJson(
             game = game.name,
             topic = topic.name,
-            language = language,
+            language = language.name,
             embed = false,
             texts = listOf("", text, " ", "  "))
 
@@ -294,7 +295,7 @@ class ChunksControllerIntegrationTest(
         val request = aChunksCreationRequestJson(
             game = game.name,
             topic = topic.name,
-            language = language,
+            language = language.name,
             embed = false,
             texts = listOf("", textA, textB, textB, "  ", textB, textA))
 
@@ -335,13 +336,13 @@ class ChunksControllerIntegrationTest(
     }
 
     @Test fun `update() Add translations when missing`() {
-        val request = aChunkTranslationsPatchRequest(inBatch = true, language = "de")
+        val request = aChunkTranslationsPatchRequest(inBatch = true, language = SupportedLanguage.EN) //de
         val uuid: UUID = UUID.randomUUID()
         val creationTime = now.minusSeconds(50_000)
         chunksRepo.insert(uuid, Game.MAUSRITTER, topic, creationTime)
-        val original = aTranslationEntity(chunkId = uuid, languageCode = "en")
-        val itTranslation = aTranslationEntity(chunkId = uuid, languageCode = "it")
-        val frTranslation = aTranslationEntity(chunkId = uuid, languageCode = "fr")
+        val original = aTranslationEntity(chunkId = uuid, language = SupportedLanguage.EN)
+        val itTranslation = aTranslationEntity(chunkId = uuid, language = SupportedLanguage.IT)
+        val frTranslation = aTranslationEntity(chunkId = uuid, language = SupportedLanguage.IT) // fr
         translationsRepo.insert(original)
         translationsRepo.insert(itTranslation)
         translationsRepo.insert(frTranslation)
@@ -366,9 +367,9 @@ class ChunksControllerIntegrationTest(
     @TestFactory
     fun `update() Embed new text translation, when inBatch is false or not specified`() =
         listOf(
-        """{"text": "$text", "language": "it", "inBatch": false}""",
-        """{"text": "$text", "language": "it", "inBatch": null}""",
-        """{"text": "$text", "language": "it"}"""
+        """{"text": "$text", "language": "IT", "inBatch": false}""",
+        """{"text": "$text", "language": "IT", "inBatch": null}""",
+        """{"text": "$text", "language": "IT"}"""
     ).map {
         dynamicTest(" -> '$it'") {
             val uuid: UUID = UUID.randomUUID()
@@ -387,7 +388,7 @@ class ChunksControllerIntegrationTest(
                 .`as`(MessageResponse::class.java)
 
             result.message shouldBe "Chunk $uuid successfully patched!"
-            val translation = translationsRepo.findTranslationByLanguage(uuid, "it").shouldNotBeNull()
+            val translation = translationsRepo.findTranslationByLanguage(uuid, SupportedLanguage.IT).shouldNotBeNull()
             translation.embeddingStatus shouldBe EMBEDDED
             translation.text shouldBe text
             val embeddingEntity = embeddingRepo.findEmbeddingByTranslationId(translation.id).shouldNotBeNull()
@@ -399,7 +400,7 @@ class ChunksControllerIntegrationTest(
         val originalText = aRandomUniqueString()
         val embedding = anEmbedding()
         val newEmbedding = anEmbedding()
-        val request = aChunkTranslationsPatchRequest(language = "it", inBatch = false)
+        val request = aChunkTranslationsPatchRequest(language = SupportedLanguage.IT, inBatch = false)
         val creationTime = now.minusSeconds(50_000)
         chunksRepo.insert(uuid, Game.MAUSRITTER, topic, creationTime)
         val translationId = UUID.randomUUID()
@@ -436,7 +437,7 @@ class ChunksControllerIntegrationTest(
     @Test fun `update() Replace a translation removing old embedding when new embedding creation fails`() {
         val originalText = aRandomUniqueString()
         val embedding = anEmbedding().normalize()
-        val request = aChunkTranslationsPatchRequest(language = "it", inBatch = false)
+        val request = aChunkTranslationsPatchRequest(language = SupportedLanguage.IT, inBatch = false)
         val creationTime = now.minusSeconds(50_000)
         chunksRepo.insert(uuid, Game.MAUSRITTER, topic, creationTime)
         val translationId = UUID.randomUUID()
@@ -496,7 +497,7 @@ class ChunksControllerIntegrationTest(
         val topic = aTopic()
         val language = aLanguage()
         val request = aChunkSearchBySimilarityRequestJson(
-            text = text, game = game.name, language = language, topic = topic.name, distanceLimit = 0.6)
+            text = text, game = game.name, language = language.name, topic = topic.name, distanceLimit = 0.6)
         val targetEmbedding = aNormalizedEmbedding()
         val embeddingA = generateVectorWithDistance(targetEmbedding, 0.5)
         val embeddingB = generateVectorWithDistance(targetEmbedding, 2.0)
@@ -528,7 +529,7 @@ class ChunksControllerIntegrationTest(
         val topic = aTopic()
         val language = aLanguage()
         val request = aChunkSearchBySimilarityRequestJson(
-            text = text, game = game.name, language = language, topic = topic.name, distanceLimit = 0.6)
+            text = text, game = game.name, language = language.name, topic = topic.name, distanceLimit = 0.6)
         val targetEmbedding = aNormalizedEmbedding()
         val embA = generateVectorWithDistance(targetEmbedding, 0.5)
         val embB = generateVectorWithDistance(targetEmbedding, 0.35)
@@ -561,7 +562,7 @@ class ChunksControllerIntegrationTest(
         val topic = aTopic()
         val language = aLanguage()
         val request = aChunkSearchBySimilarityRequestJson(
-            text = text, game = game.name, language = language, topic = topic.name, distanceLimit = 0.6)
+            text = text, game = game.name, language = language.name, topic = topic.name, distanceLimit = 0.6)
         val targetEmbedding = aNormalizedEmbedding()
         val embA = generateVectorWithDistance(targetEmbedding, 0.5)
         val embB = generateVectorWithDistance(targetEmbedding, 0.35)
@@ -592,16 +593,16 @@ class ChunksControllerIntegrationTest(
     @Test fun `similaritySearch() Do not returns same game and topic but different language texts`() {
         val game = aGame()
         val topic = aTopic()
-        val language = aLanguage()
+        val language = SupportedLanguage.IT
         val request = aChunkSearchBySimilarityRequestJson(
-            text = text, game = game.name, topic = topic.name, language = language, distanceLimit = 0.6)
+            text = text, game = game.name, topic = topic.name, language = language.name, distanceLimit = 0.6)
         val targetEmbedding = aNormalizedEmbedding()
         val embeddingA = generateVectorWithDistance(targetEmbedding, 0.5)
         val embeddingB = generateVectorWithDistance(targetEmbedding, 0.35)
         val embeddingC = generateVectorWithDistance(targetEmbedding, 0.01)
         val embeddingD = generateVectorWithDistance(targetEmbedding, 0.3)
         val embeddingE = generateVectorWithDistance(targetEmbedding, 0.59)
-        val another = language.reversed()
+        val another = SupportedLanguage.EN
         givenChunkEmbedding(language = language, topic = topic, game = game, text = "text A", embedding = embeddingA)
         givenChunkEmbedding(language = another, topic = topic, game = game, text = "text B", embedding = embeddingB)
         givenChunkEmbedding(language = another, topic = topic, game = game, text = "text C", embedding = embeddingC)
@@ -627,7 +628,7 @@ class ChunksControllerIntegrationTest(
             text = text,
             game = game.name,
             topic = topic.name,
-            language = language,
+            language = language.name,
             embeddingsLimit = 3,
             distanceLimit = 0.3
         )
@@ -662,7 +663,7 @@ class ChunksControllerIntegrationTest(
             text = text,
             game = game.name,
             topic = topic.name,
-            language = language,
+            language = language.name,
             embeddingsLimit = 6,
             distanceLimit = 0.3
         )

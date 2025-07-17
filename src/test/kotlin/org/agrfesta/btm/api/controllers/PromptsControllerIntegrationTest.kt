@@ -86,11 +86,11 @@ class PromptsControllerIntegrationTest(
             language = language.name,
             maxTokens = 600
         )
-        givenChunkEmbedding(game, topic, language = language.name, text = chunkA, embeddingA)
-        givenChunkEmbedding(game, topic, language = language.name, text = chunkB, embeddingB)
-        givenChunkEmbedding(game, topic, language = language.name, text = chunkC, embeddingC)
-        givenChunkEmbedding(game, topic, language = language.name, text = chunkD, embeddingD)
-        givenChunkEmbedding(game, topic, language = language.name, text = chunkE, embeddingE)
+        givenChunkEmbedding(game, topic, language = language, text = chunkA, embeddingA)
+        givenChunkEmbedding(game, topic, language = language, text = chunkB, embeddingB)
+        givenChunkEmbedding(game, topic, language = language, text = chunkC, embeddingC)
+        givenChunkEmbedding(game, topic, language = language, text = chunkD, embeddingD)
+        givenChunkEmbedding(game, topic, language = language, text = chunkE, embeddingE)
         coEvery { embeddingsProvider.createEmbedding(prompt) } returns target.right()
         every { tokenizer.countTokens(chunkC) } returns 300.right() // first
         every { tokenizer.countTokens(chunkB) } returns 150.right() // second
@@ -128,8 +128,8 @@ class PromptsControllerIntegrationTest(
             language = language.name,
             maxTokens = 600
         )
-        givenChunkEmbedding(game, topic, language = language.name, text = chunkA, embeddingA)
-        givenChunkEmbedding(game, topic, language = language.name, text = chunkB, embeddingB)
+        givenChunkEmbedding(game, topic, language = language, text = chunkA, embeddingA)
+        givenChunkEmbedding(game, topic, language = language, text = chunkB, embeddingB)
         coEvery { embeddingsProvider.createEmbedding(prompt) } returns target.right()
         every { tokenizer.countTokens(chunkB) } returns 1.right()
         every { tokenizer.countTokens(chunkA) } returns 700.right()

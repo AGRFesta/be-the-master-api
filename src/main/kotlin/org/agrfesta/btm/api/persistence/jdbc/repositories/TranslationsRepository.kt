@@ -1,6 +1,7 @@
 package org.agrfesta.btm.api.persistence.jdbc.repositories
 
 import org.agrfesta.btm.api.model.EmbeddingStatus
+import org.agrfesta.btm.api.model.SupportedLanguage
 import org.agrfesta.btm.api.persistence.jdbc.entities.TranslationEntity
 import org.springframework.dao.EmptyResultDataAccessException
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
@@ -18,14 +19,14 @@ class TranslationsRepository(
         INSERT INTO btm.translations (
             id,
             chunk_id,
-            language_code,
+            language,
             text,
             embedding_status,
             created_on
         ) VALUES (
             :id,
             :chunkId,
-            :languageCode,
+            CAST(:language AS supported_language_enum),
             :text,
             CAST(:embeddingStatus AS embedding_status_enum),
             :createdOn
@@ -35,7 +36,7 @@ class TranslationsRepository(
         val params = mapOf(
             "id" to entity.id,
             "chunkId" to entity.chunkId,
-            "languageCode" to entity.languageCode,
+            "language" to entity.language.name,
             "text" to entity.text,
             "embeddingStatus" to entity.embeddingStatus.name,
             "createdOn" to Timestamp.from(entity.createdOn)
@@ -44,28 +45,28 @@ class TranslationsRepository(
         jdbcTemplate.update(sql, params)
     }
 
-    fun findTranslationByLanguage(chunkId: UUID, language: String): TranslationEntity? {
+    fun findTranslationByLanguage(chunkId: UUID, language: SupportedLanguage): TranslationEntity? {
         val sql = """
             SELECT 
                 id,
                 chunk_id,
-                language_code,
+                language,
                 text,
                 embedding_status,
                 created_on
             FROM btm.translations
             WHERE chunk_id = :chunkId
-            and language_code = :language
+            and language = CAST(:language AS supported_language_enum)
         """.trimIndent()
 
-        val params = mapOf("chunkId" to chunkId, "language" to language)
+        val params = mapOf("chunkId" to chunkId, "language" to language.name)
 
         val trs: TranslationEntity? = try {
             jdbcTemplate.queryForObject(sql, params) { rs, _ ->
                 TranslationEntity(
                     id = UUID.fromString(rs.getString("id")),
                     chunkId = UUID.fromString(rs.getString("chunk_id")),
-                    languageCode = rs.getString("language_code"),
+                    language = SupportedLanguage.valueOf(rs.getString("language")),
                     text = rs.getString("text"),
                     embeddingStatus = EmbeddingStatus.valueOf(rs.getString("embedding_status")),
                     createdOn = rs.getTimestamp("created_on").toInstant()
@@ -82,7 +83,7 @@ class TranslationsRepository(
             SELECT 
                 id,
                 chunk_id,
-                language_code,
+                language,
                 text,
                 embedding_status,
                 created_on
@@ -96,7 +97,7 @@ class TranslationsRepository(
             TranslationEntity(
                 id = UUID.fromString(rs.getString("id")),
                 chunkId = UUID.fromString(rs.getString("chunk_id")),
-                languageCode = rs.getString("language_code"),
+                language = SupportedLanguage.valueOf(rs.getString("language")),
                 text = rs.getString("text"),
                 embeddingStatus = EmbeddingStatus.valueOf(rs.getString("embedding_status")),
                 createdOn = rs.getTimestamp("created_on").toInstant()

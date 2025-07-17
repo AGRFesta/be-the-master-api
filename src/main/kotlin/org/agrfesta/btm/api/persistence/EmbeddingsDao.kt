@@ -4,6 +4,7 @@ import arrow.core.Either
 import org.agrfesta.btm.api.model.Embedding
 import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.model.PersistenceFailure
+import org.agrfesta.btm.api.model.SupportedLanguage
 import org.agrfesta.btm.api.model.Topic
 import org.springframework.transaction.annotation.Transactional
 import java.util.*
@@ -20,7 +21,7 @@ interface EmbeddingsDao {
         target: Embedding,
         game: Game,
         topic: Topic,
-        language: String,
+        language: SupportedLanguage,
         embeddingsLimit: Int,
         distanceLimit: Double
     ): List<Pair<String, Double>>

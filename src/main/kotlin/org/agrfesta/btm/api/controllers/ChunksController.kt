@@ -22,6 +22,7 @@ import org.agrfesta.btm.api.model.EmbeddingCreationFailure
 import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.model.MissingChunk
 import org.agrfesta.btm.api.model.PersistenceFailure
+import org.agrfesta.btm.api.model.SupportedLanguage
 import org.agrfesta.btm.api.model.Topic
 import org.agrfesta.btm.api.services.ChunksService
 import org.agrfesta.btm.api.services.Embedder
@@ -148,9 +149,7 @@ data class ChunksCreationRequest(
 
     val topic: Topic,
 
-    @field:NotBlank(message = "language must not be blank and two charters long!")
-    @field:Size(min = 2, max = 2, message = "language must not be blank and two charters long!")
-    val language: String,
+    val language: SupportedLanguage,
 
     @field:JsonDeserialize(using = NonBlankStringSetDeserializer::class)
     @field:NotEmpty(message = "No chunks to create!")
@@ -165,9 +164,7 @@ data class ChunkTranslationPatchRequest(
     @field:NotBlank(message = "text must not be blank!")
     val text: String,
 
-    @field:NotBlank(message = "language must not be blank and two charters long!")
-    @field:Size(min = 2, max = 2, message = "language must not be blank and two charters long!")
-    val language: String,
+    val language: SupportedLanguage,
 
     val inBatch: Boolean = false
 )
@@ -181,9 +178,7 @@ data class ChunkSearchBySimilarityRequest(
     @field:NotBlank(message = "text must not be blank!")
     val text: String,
 
-    @field:NotBlank(message = "language must not be blank and two charters long!")
-    @field:Size(min = 2, max = 2, message = "language must not be blank and two charters long!")
-    val language: String,
+    val language: SupportedLanguage,
 
     @field:Positive(message = "embeddingsLimit must be a positive Int!")
     val embeddingsLimit: Int?,
