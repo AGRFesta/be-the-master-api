@@ -98,23 +98,20 @@ class ChunksControllerUnitTest(
         response.message shouldBe "language is missing!"
     }
 
-    @TestFactory
-    fun `createChunks() Returns 400 when language is not valid`() = listOf("", " ", "  ", "i", "ita").map {
-        dynamicTest(" -> '$it'") {
-            val request = aChunksCreationRequestJson(language = it)
-            val responseBody: String = mockMvc.perform(
-                post("/chunks")
-                    .contentType("application/json")
-                    .content(request))
-                .andExpect(status().isBadRequest)
-                .andReturn().response.contentAsString
+    @Test fun `createChunks() Returns 400 when language is not valid`() {
+        val requestJson = aChunksCreationRequestJson(language = aRandomUniqueString())
+        val responseBody: String = mockMvc.perform(
+            post("/chunks")
+                .contentType("application/json")
+                .content(requestJson))
+            .andExpect(status().isBadRequest)
+            .andReturn().response.contentAsString
 
-            coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
-            asserter.verifyNoTranslationsPersisted()
-            asserter.verifyNoEmbeddingsPersisted()
-            val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-            response.message shouldBe "language must not be blank and two charters long!"
-        }
+        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
+        asserter.verifyNoTranslationsPersisted()
+        asserter.verifyNoEmbeddingsPersisted()
+        val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+        response.message shouldBe "language is not valid!"
     }
 
     @TestFactory
@@ -219,7 +216,7 @@ class ChunksControllerUnitTest(
                 .content(aChunksCreationRequestJson(
                     game = game.name,
                     topic = topic.name,
-                    language = language,
+                    language = language.name,
                     texts = listOf(textA, textB, textC))))
             .andExpect(status().isOk)
             .andReturn().response.contentAsString
@@ -259,7 +256,7 @@ class ChunksControllerUnitTest(
                 .content(aChunksCreationRequestJson(
                     game = game.name,
                     topic = topic.name,
-                    language = language,
+                    language = language.name,
                     texts = listOf(textA, textB, textC))))
             .andExpect(status().isOk)
             .andReturn().response.contentAsString
@@ -299,30 +296,27 @@ class ChunksControllerUnitTest(
         response.message shouldBe "language is missing!"
     }
 
-    @TestFactory
-    fun `update() Returns 400 when language is not valid`() = listOf("", " ", "  ", "i", "ita").map {
-        dynamicTest(" -> '$it'") {
-            val request = aChunkTranslationsPatchRequestJson(language = it)
-            val responseBody: String = mockMvc.perform(
-                patch("/chunks/${UUID.randomUUID()}")
-                    .contentType("application/json")
-                    .content(request))
-                .andExpect(status().isBadRequest)
-                .andReturn().response.contentAsString
+    @Test fun `update() Returns 400 when language is not valid`() {
+        val request = aChunkTranslationsPatchRequestJson(language = aRandomUniqueString())
+        val responseBody: String = mockMvc.perform(
+            patch("/chunks/${UUID.randomUUID()}")
+                .contentType("application/json")
+                .content(request))
+            .andExpect(status().isBadRequest)
+            .andReturn().response.contentAsString
 
-            verify(exactly = 0) { chunksDao.persist(any(), any()) }
-            coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
-            verify(exactly = 0) { embeddingsDao.persist(any(), any()) }
-            verify(exactly = 0) { translationsDao.setEmbeddingStatus(any(), any()) }
-            val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-            response.message shouldBe "language must not be blank and two charters long!"
-        }
+        verify(exactly = 0) { chunksDao.persist(any(), any()) }
+        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
+        verify(exactly = 0) { embeddingsDao.persist(any(), any()) }
+        verify(exactly = 0) { translationsDao.setEmbeddingStatus(any(), any()) }
+        val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+        response.message shouldBe "language is not valid!"
     }
 
     @TestFactory
     fun `update() returns 400 when new text is empty`() = listOf("", " ", "  ", "    ").map {
         dynamicTest(" -> '$it'") {
-            val request = aChunkTranslationsPatchRequest(text = it, language = "en")
+            val request = aChunkTranslationsPatchRequest(text = it)
             val responseBody: String = mockMvc.perform(
                 patch("/chunks/${UUID.randomUUID()}")
                     .contentType("application/json")
@@ -397,21 +391,18 @@ class ChunksControllerUnitTest(
         }
     }
 
-    @TestFactory
-    fun `similaritySearch() returns 400 when language is not valid`() = listOf("", " ", "  ", "    ", "i", "ita").map {
-        dynamicTest(" -> '$it'") {
-            val request = aChunkSearchBySimilarityRequest(language = it)
-            val responseBody: String = mockMvc.perform(
-                post("/chunks/similarity-search")
-                    .contentType("application/json")
-                    .content(request.toJsonString()))
-                .andExpect(status().isBadRequest)
-                .andReturn().response.contentAsString
+    @Test fun `similaritySearch() Returns 400 when language is not valid`() {
+        val requestJson = aChunkSearchBySimilarityRequestJson(language = aRandomUniqueString())
+        val responseBody: String = mockMvc.perform(
+            post("/chunks/similarity-search")
+                .contentType("application/json")
+                .content(requestJson))
+            .andExpect(status().isBadRequest)
+            .andReturn().response.contentAsString
 
-            verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any(), any(), any()) }
-            val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-            response.message shouldBe "language must not be blank and two charters long!"
-        }
+        verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any(), any(), any()) }
+        val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
+        response.message shouldBe "language is not valid!"
     }
 
     @Test fun `similaritySearch() Returns 400 when Game is not valid`() {

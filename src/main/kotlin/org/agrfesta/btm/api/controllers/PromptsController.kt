@@ -169,7 +169,7 @@ class PromptsController(
                 val result = try {
                     logger.info("Searching similar chunks...")
                     embeddingsDao.searchBySimilarity(target, request.game, request.topic,
-                        request.language.name,
+                        request.language,
                         DEFAULT_EMBEDDINGS_LIMIT,
                         DEFAULT_DISTANCE_LIMIT
                     ).also {

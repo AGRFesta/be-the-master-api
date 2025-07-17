@@ -2,6 +2,7 @@ package org.agrfesta.btm.api.persistence
 
 import org.agrfesta.btm.api.model.EmbeddingStatus
 import org.agrfesta.btm.api.model.Chunk
+import org.agrfesta.btm.api.model.SupportedLanguage
 import org.agrfesta.btm.api.model.Translation
 import org.springframework.transaction.annotation.Transactional
 import java.util.*
@@ -22,10 +23,10 @@ interface TranslationsDao {
      * Fetches a specific language [Chunk]'s [Translation].
      *
      * @param chunkId [Chunk] unique identifier.
-     * @param language [Translation] language.
+     * @param language [SupportedLanguage] language.
      * @return found [Translation], null if missing.
      */
-    fun findTranslationByLanguage(chunkId: UUID, language: String): Translation?
+    fun findTranslationByLanguage(chunkId: UUID, language: SupportedLanguage): Translation?
 
     /**
      * Fetches all [Chunk]'s [Translation]s.
@@ -54,7 +55,7 @@ interface TranslationsDao {
      * @return [UUID] assigned to the new persisted [Translation].
      */
     @Transactional
-    fun addOrReplace(chunkId: UUID, language: String, newText: String): UUID
+    fun addOrReplace(chunkId: UUID, language: SupportedLanguage, newText: String): UUID
 
     /**
      * Deletes [Translation].
