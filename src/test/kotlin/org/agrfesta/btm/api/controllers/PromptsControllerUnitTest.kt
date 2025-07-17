@@ -214,7 +214,7 @@ class PromptsControllerUnitTest(
         )
         val target = anEmbedding()
         coEvery { embeddingsProvider.createEmbedding(prompt, true) } returns target.right()
-        every { embeddingsDao.searchBySimilarity(target, game, topic, language.name,
+        every { embeddingsDao.searchBySimilarity(target, game, topic, language,
             DEFAULT_EMBEDDINGS_LIMIT,
             DEFAULT_DISTANCE_LIMIT) } throws Exception("search by similarity failure!")
         val responseBody: String = mockMvc.perform(
@@ -243,7 +243,7 @@ class PromptsControllerUnitTest(
         val chunkC = aRandomUniqueString()
         val expectedContext = listOf(chunkA to 0.1, chunkB to 0.2, chunkC to 0.3)
         coEvery { embeddingsProvider.createEmbedding(prompt, true) } returns target.right()
-        every { embeddingsDao.searchBySimilarity(target, game, topic, language.name,
+        every { embeddingsDao.searchBySimilarity(target, game, topic, language,
             DEFAULT_EMBEDDINGS_LIMIT,
             DEFAULT_DISTANCE_LIMIT) } returns expectedContext
         coEvery { tokenizer.countTokens(chunkA, true) } returns 10.right()
@@ -281,7 +281,7 @@ class PromptsControllerUnitTest(
         val chunkE = aRandomUniqueString()
         val expectedContext = listOf(chunkA to 0.1, chunkB to 0.2, chunkC to 0.3, chunkD to 0.4, chunkE to 0.5)
         coEvery { embeddingsProvider.createEmbedding(prompt, true) } returns target.right()
-        every { embeddingsDao.searchBySimilarity(target, game, topic, language.name,
+        every { embeddingsDao.searchBySimilarity(target, game, topic, language,
             DEFAULT_EMBEDDINGS_LIMIT,
             DEFAULT_DISTANCE_LIMIT) } returns expectedContext
         coEvery { tokenizer.countTokens(chunkA, true) } returns 200.right()
@@ -320,7 +320,7 @@ class PromptsControllerUnitTest(
         val chunkE = aRandomUniqueString()
         val expectedContext = listOf(chunkA to 0.1, chunkB to 0.2, chunkC to 0.3, chunkD to 0.4, chunkE to 0.5)
         coEvery { embeddingsProvider.createEmbedding(prompt, true) } returns target.right()
-        every { embeddingsDao.searchBySimilarity(target, game, topic, language.name,
+        every { embeddingsDao.searchBySimilarity(target, game, topic, language,
             DEFAULT_EMBEDDINGS_LIMIT,
             DEFAULT_DISTANCE_LIMIT) } returns expectedContext
         coEvery { tokenizer.countTokens(chunkA, true) } returns 200.right()

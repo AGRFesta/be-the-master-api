@@ -10,6 +10,7 @@ import org.agrfesta.btm.api.model.EmbeddingStatus.EMBEDDED
 import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.model.PersistenceFailure
 import org.agrfesta.btm.api.model.ReplaceTranslationFailure
+import org.agrfesta.btm.api.model.SupportedLanguage
 import org.agrfesta.btm.api.model.Topic
 import org.agrfesta.btm.api.persistence.ChunksDao
 import org.agrfesta.btm.api.persistence.EmbeddingsDao
@@ -77,7 +78,7 @@ class ChunksService(
      */
     fun replaceTranslation(
         chunkId: UUID,
-        language: String,
+        language: SupportedLanguage,
         newText: String,
         embedder: Embedder? = null
     ): Either<ReplaceTranslationFailure, Unit> {
@@ -113,7 +114,7 @@ class ChunksService(
         text: String,
         game: Game,
         topic: Topic,
-        language: String,
+        language: SupportedLanguage,
         embedder: Embedder,
         embeddingsLimit: Int? = null,
         distanceLimit: Double? = null

@@ -22,5 +22,5 @@ class Chunk(
 
 data class Translation(
     val text: String,
-    val language: String
+    val language: SupportedLanguage
 )

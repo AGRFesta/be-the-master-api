@@ -3,6 +3,7 @@ package org.agrfesta.btm.api.controllers
 import org.agrfesta.btm.api.model.Embedding
 import org.agrfesta.btm.api.model.EmbeddingStatus.EMBEDDED
 import org.agrfesta.btm.api.model.Game
+import org.agrfesta.btm.api.model.SupportedLanguage
 import org.agrfesta.btm.api.model.Topic
 import org.agrfesta.btm.api.persistence.jdbc.entities.aTranslationEntity
 import org.agrfesta.btm.api.persistence.jdbc.repositories.ChunksRepository
@@ -19,7 +20,7 @@ interface RagAsserter {
     fun givenChunkEmbedding(
         game: Game = aGame(),
         topic: Topic = aTopic(),
-        language: String = aLanguage(),
+        language: SupportedLanguage = aLanguage(),
         text: String,
         embedding: Embedding
     ): UUID
@@ -37,7 +38,7 @@ class RagAsserterImpl(
     override fun givenChunkEmbedding(
         game: Game,
         topic: Topic,
-        language: String,
+        language: SupportedLanguage,
         text: String,
         embedding: Embedding
     ): UUID {
@@ -47,7 +48,7 @@ class RagAsserterImpl(
             chunkId = chunk.id,
             embeddingStatus = EMBEDDED,
             text = text,
-            languageCode = language)
+            language = language)
         translationsRepo.insert(translation)
         embeddingRepo.insertEmbedding(UUID.randomUUID(), translation.id, embedding, now)
         return translation.id

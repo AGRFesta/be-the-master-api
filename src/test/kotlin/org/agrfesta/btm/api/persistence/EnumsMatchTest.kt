@@ -2,7 +2,9 @@ package org.agrfesta.btm.api.persistence
 
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.restassured.RestAssured
+import org.agrfesta.btm.api.model.EmbeddingStatus
 import org.agrfesta.btm.api.model.Game
+import org.agrfesta.btm.api.model.SupportedLanguage
 import org.agrfesta.btm.api.model.Topic
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -55,6 +57,26 @@ class EnumsMatchTest(
         ) { rs, _ -> rs.getString(1) }
 
         val kotlinEnumValues: List<String> = Topic.entries.map { it.name }
+
+        kotlinEnumValues.shouldContainExactlyInAnyOrder(postgresEnumValues)
+    }
+
+    @Test fun `verify PostgreSQL embedding_status_enum matches Kotlin Topic enum`() {
+        val postgresEnumValues: List<String> = jdbcTemplate.query(
+            "SELECT unnest(enum_range(NULL::embedding_status_enum))::text"
+        ) { rs, _ -> rs.getString(1) }
+
+        val kotlinEnumValues: List<String> = EmbeddingStatus.entries.map { it.name }
+
+        kotlinEnumValues.shouldContainExactlyInAnyOrder(postgresEnumValues)
+    }
+
+    @Test fun `verify PostgreSQL supported_language_enum matches Kotlin Topic enum`() {
+        val postgresEnumValues: List<String> = jdbcTemplate.query(
+            "SELECT unnest(enum_range(NULL::supported_language_enum))::text"
+        ) { rs, _ -> rs.getString(1) }
+
+        val kotlinEnumValues: List<String> = SupportedLanguage.entries.map { it.name }
 
         kotlinEnumValues.shouldContainExactlyInAnyOrder(postgresEnumValues)
     }
