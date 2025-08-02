@@ -32,7 +32,7 @@ import kotlin.math.sqrt
  * and similarity-based search.
  */
 @RestController
-@RequestMapping("/chunks")
+@RequestMapping("/chnks")
 class ChunksController(
     private val chunksService: ChunksService,
     private val embeddingsProvider: EmbeddingsProvider
