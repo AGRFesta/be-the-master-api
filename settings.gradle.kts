@@ -3,4 +3,4 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
 }
 
-rootProject.name = "be-the-master"
+rootProject.name = "be-the-master-api"
