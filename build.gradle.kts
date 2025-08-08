@@ -56,10 +56,10 @@ dependencies {
 }
 
 docker {
-    name = "agrfesta/be-the-master:${version}"
-    uri("agrfesta/be-the-master:${version}")
-    tag("name", "be-the-master")
-    buildArgs(mapOf("name" to "be-the-master"))
+    name = "agrfesta/be-the-master-api:${version}"
+    uri("agrfesta/be-the-master-api:${version}")
+    tag("name", "be-the-master-api")
+    buildArgs(mapOf("name" to "be-the-master-api"))
     copySpec.from("build").into("build")
     pull(true)
     setDockerfile(file("Dockerfile"))
