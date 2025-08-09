@@ -5,6 +5,7 @@ import arrow.core.Either.Right
 import arrow.core.flatMap
 import arrow.core.left
 import arrow.core.right
+import java.util.*
 import kotlinx.coroutines.runBlocking
 import org.agrfesta.btm.api.model.Embedding
 import org.agrfesta.btm.api.model.EmbeddingCreationFailure
@@ -24,12 +25,12 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-import java.util.*
 import kotlin.math.sqrt
 
 /**
  * REST controller for managing Text Chunks (small text units), their translations,
  * and similarity-based search.
+ * We assume that all chunks are not queries.
  */
 @RestController
 @RequestMapping("/chunks")
@@ -37,7 +38,7 @@ class ChunksController(
     private val chunksService: ChunksService,
     private val embeddingsProvider: EmbeddingsProvider
 ) {
-    private val embedder: Embedder = {text -> runBlocking { embeddingsProvider.createEmbedding(text) }}
+    private val embedder: Embedder = {text -> runBlocking { embeddingsProvider.createEmbedding(text, false) }}
 
     /**
      * POST /chunks
@@ -98,7 +99,7 @@ class ChunksController(
         }.fold(
             ifLeft = {
                 when(it) {
-                    EmbeddingCreationFailure -> ok()
+                    is EmbeddingCreationFailure -> ok()
                         .body(MessageResponse("Chunk $id successfully patched! But embedding creation failed!"))
                     is PersistenceFailure -> internalServerError()
                         .body(MessageResponse("Unable to replace chunk $id!"))
