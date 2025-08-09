@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.ninjasquad.springmockk.MockkBean
 import io.kotest.matchers.shouldBe
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.verify
 import org.agrfesta.btm.api.model.EmbeddingCreationFailure
@@ -158,7 +159,9 @@ class PromptsControllerUnitTest(
             language = language.name,
             maxTokens = 8_000
         )
-        coEvery { embeddingsProvider.createEmbedding(prompt) } returns EmbeddingCreationFailure.left()
+        coEvery {
+            embeddingsProvider.createEmbedding(prompt, true)
+        } returns EmbeddingCreationFailure("an embedding failure").left()
         val responseBody: String = mockMvc.perform(
             post("/prompts/enhance/basic")
                 .contentType("application/json")
@@ -167,7 +170,7 @@ class PromptsControllerUnitTest(
             .andReturn().response.contentAsString
 
         verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any(), any(), any()) }
-        verify(exactly = 0) { tokenizer.countTokens(any()) }
+        coVerify(exactly = 0) { tokenizer.countTokens(any(), true) }
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
         response.message shouldBe "Unable to create target embedding!"
     }
@@ -181,7 +184,7 @@ class PromptsControllerUnitTest(
             maxTokens = 8_000
         )
         val target = anEmbedding()
-        coEvery { embeddingsProvider.createEmbedding(prompt) } returns target.right()
+        coEvery { embeddingsProvider.createEmbedding(prompt, true) } returns target.right()
         every { embeddingsDao.searchBySimilarity(target, game, topic, language.name,
             DEFAULT_EMBEDDINGS_LIMIT,
             DEFAULT_DISTANCE_LIMIT) } throws Exception("search by similarity failure!")
@@ -192,7 +195,7 @@ class PromptsControllerUnitTest(
             .andExpect(status().isInternalServerError)
             .andReturn().response.contentAsString
 
-        verify(exactly = 0) { tokenizer.countTokens(any()) }
+        coVerify(exactly = 0) { tokenizer.countTokens(any(), true) }
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
         response.message shouldBe "Search by similarity failed!"
     }
@@ -210,13 +213,13 @@ class PromptsControllerUnitTest(
         val chunkB = aRandomUniqueString()
         val chunkC = aRandomUniqueString()
         val expectedContext = listOf(chunkA to 0.1, chunkB to 0.2, chunkC to 0.3)
-        coEvery { embeddingsProvider.createEmbedding(prompt) } returns target.right()
+        coEvery { embeddingsProvider.createEmbedding(prompt, true) } returns target.right()
         every { embeddingsDao.searchBySimilarity(target, game, topic, language.name,
             DEFAULT_EMBEDDINGS_LIMIT,
             DEFAULT_DISTANCE_LIMIT) } returns expectedContext
-        every { tokenizer.countTokens(chunkA) } returns 10.right()
-        every { tokenizer.countTokens(chunkB) } returns 14.right()
-        every { tokenizer.countTokens(chunkC) } returns 104.right()
+        coEvery { tokenizer.countTokens(chunkA, true) } returns 10.right()
+        coEvery { tokenizer.countTokens(chunkB, true) } returns 14.right()
+        coEvery { tokenizer.countTokens(chunkC, true) } returns 104.right()
         val responseBody: String = mockMvc.perform(
             post("/prompts/enhance/basic")
                 .contentType("application/json")
@@ -248,15 +251,15 @@ class PromptsControllerUnitTest(
         val chunkD = aRandomUniqueString()
         val chunkE = aRandomUniqueString()
         val expectedContext = listOf(chunkA to 0.1, chunkB to 0.2, chunkC to 0.3, chunkD to 0.4, chunkE to 0.5)
-        coEvery { embeddingsProvider.createEmbedding(prompt) } returns target.right()
+        coEvery { embeddingsProvider.createEmbedding(prompt, true) } returns target.right()
         every { embeddingsDao.searchBySimilarity(target, game, topic, language.name,
             DEFAULT_EMBEDDINGS_LIMIT,
             DEFAULT_DISTANCE_LIMIT) } returns expectedContext
-        every { tokenizer.countTokens(chunkA) } returns 200.right()
-        every { tokenizer.countTokens(chunkB) } returns 250.right()
-        every { tokenizer.countTokens(chunkC) } returns 50.right()
-        every { tokenizer.countTokens(chunkD) } returns 400.right()
-        every { tokenizer.countTokens(chunkE) } returns 30.right()
+        coEvery { tokenizer.countTokens(chunkA, true) } returns 200.right()
+        coEvery { tokenizer.countTokens(chunkB, true) } returns 250.right()
+        coEvery { tokenizer.countTokens(chunkC, true) } returns 50.right()
+        coEvery { tokenizer.countTokens(chunkD, true) } returns 400.right()
+        coEvery { tokenizer.countTokens(chunkE, true) } returns 30.right()
         val responseBody: String = mockMvc.perform(
             post("/prompts/enhance/basic")
                 .contentType("application/json")
@@ -287,15 +290,15 @@ class PromptsControllerUnitTest(
         val chunkD = aRandomUniqueString()
         val chunkE = aRandomUniqueString()
         val expectedContext = listOf(chunkA to 0.1, chunkB to 0.2, chunkC to 0.3, chunkD to 0.4, chunkE to 0.5)
-        coEvery { embeddingsProvider.createEmbedding(prompt) } returns target.right()
+        coEvery { embeddingsProvider.createEmbedding(prompt, true) } returns target.right()
         every { embeddingsDao.searchBySimilarity(target, game, topic, language.name,
             DEFAULT_EMBEDDINGS_LIMIT,
             DEFAULT_DISTANCE_LIMIT) } returns expectedContext
-        every { tokenizer.countTokens(chunkA) } returns 200.right()
-        every { tokenizer.countTokens(chunkB) } returns 250.right()
-        every { tokenizer.countTokens(chunkC) } returns TokenCountFailure.left()
-        every { tokenizer.countTokens(chunkD) } returns 30.right()
-        every { tokenizer.countTokens(chunkE) } returns 400.right()
+        coEvery { tokenizer.countTokens(chunkA, true) } returns 200.right()
+        coEvery { tokenizer.countTokens(chunkB, true) } returns 250.right()
+        coEvery { tokenizer.countTokens(chunkC, true) } returns TokenCountFailure("a count failure").left()
+        coEvery { tokenizer.countTokens(chunkD, true) } returns 30.right()
+        coEvery { tokenizer.countTokens(chunkE, true) } returns 400.right()
         val responseBody: String = mockMvc.perform(
             post("/prompts/enhance/basic")
                 .contentType("application/json")

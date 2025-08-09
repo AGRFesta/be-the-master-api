@@ -3,10 +3,10 @@ package org.agrfesta.btm.api.controllers
 import arrow.core.Either
 import arrow.core.Either.Left
 import arrow.core.Either.Right
-import arrow.core.align
 import arrow.core.flatMap
 import arrow.core.left
 import arrow.core.right
+import java.util.*
 import kotlinx.coroutines.runBlocking
 import org.agrfesta.btm.api.model.BtmConfigurationFailure
 import org.agrfesta.btm.api.model.BtmFlowFailure
@@ -32,7 +32,6 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-import java.util.*
 
 /**
  * REST controller for managing prompt-related operations such as enhancement, token counting,
@@ -73,7 +72,7 @@ class PromptsController(
             is Left -> status(INTERNAL_SERVER_ERROR).body("Failure!")
             is Right -> {
                 val party = partyResult.value
-                val targetResult = runBlocking { embeddingsProvider.createEmbedding(request.prompt) }
+                val targetResult = runBlocking { embeddingsProvider.createEmbedding(request.prompt, true) }
                 when (targetResult) {
                     is Left -> status(INTERNAL_SERVER_ERROR).body("Failure!")
                     is Right -> {
@@ -102,7 +101,7 @@ class PromptsController(
      */
     @PostMapping("/tokens-count")
     fun tokenCount(@RequestBody request: PromptRequest): ResponseEntity<Any> =
-        when (val count = tokenizer.countTokens(request.prompt)) {
+        when (val count = runBlocking { tokenizer.countTokens(request.prompt, true) } ) {
             is Left -> status(INTERNAL_SERVER_ERROR).body("Failure!")
             is Right -> status(OK).body(TokenCountResponse(count.value))
         }
@@ -118,7 +117,7 @@ class PromptsController(
      */
     @PostMapping("/embedding")
     fun createEmbedding(@RequestBody request: PromptRequest): ResponseEntity<Any> {
-        val result = runBlocking { embeddingsProvider.createEmbedding(request.prompt) }
+        val result = runBlocking { embeddingsProvider.createEmbedding(request.prompt, true) }
         return when (result) {
             is Left -> status(INTERNAL_SERVER_ERROR).body("Failure!")
             is Right -> status(OK).body(result)
@@ -161,7 +160,7 @@ class PromptsController(
             .flatMap { validated ->
                 runBlocking {
                     logger.info("Creating prompt embedding...")
-                    embeddingsProvider.createEmbedding(validated.prompt)
+                    embeddingsProvider.createEmbedding(validated.prompt, true)
                 }
                     .flatMap { target ->
                         val result = try {
@@ -202,13 +201,15 @@ class PromptsController(
             .filter { it.isNotBlank() }
 
     private fun Tokenizer.countTokensOrIgnore(sum: Int, chunk: String): Pair<Int, String> =
-        countTokens(chunk).fold(
+        runBlocking {
+            countTokens(chunk, true).fold(
                 ifLeft = {
                     logger.error("chunk token count failure!")
                     sum to ""
                 },
                 ifRight = { (sum + it) to chunk }
             )
+        }
 
 }
 

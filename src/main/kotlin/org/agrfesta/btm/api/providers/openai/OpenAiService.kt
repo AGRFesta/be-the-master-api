@@ -13,7 +13,7 @@ class OpenAiService(
     private val openAiClient: OpenAiClient
 ): EmbeddingsProvider {
 
-    override suspend fun createEmbedding(text: String): Either<EmbeddingCreationFailure, Embedding> =
+    override suspend fun createEmbedding(text: String, isAQuery: Boolean): Either<EmbeddingCreationFailure, Embedding> =
         openAiClient.createEmbedding(text)
             .map {
                 //TODO print usage

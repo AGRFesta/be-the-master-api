@@ -91,11 +91,11 @@ class PromptsControllerIntegrationTest(
         givenChunkEmbedding(game, topic, language = language.name, text = chunkC, embeddingC)
         givenChunkEmbedding(game, topic, language = language.name, text = chunkD, embeddingD)
         givenChunkEmbedding(game, topic, language = language.name, text = chunkE, embeddingE)
-        coEvery { embeddingsProvider.createEmbedding(prompt) } returns target.right()
-        every { tokenizer.countTokens(chunkC) } returns 300.right() // first
-        every { tokenizer.countTokens(chunkB) } returns 150.right() // second
-        every { tokenizer.countTokens(chunkA) } returns 350.right() // third, EXCLUDED, not enough tokens remained
-        every { tokenizer.countTokens(chunkD) } returns 10.right()  // fourth, EXCLUDED, not enough tokens remained (actually can be included, we should consider it as improvement)
+        coEvery { embeddingsProvider.createEmbedding(prompt, true) } returns target.right()
+        coEvery { tokenizer.countTokens(chunkC, true) } returns 300.right() // first
+        coEvery { tokenizer.countTokens(chunkB, true) } returns 150.right() // second
+        coEvery { tokenizer.countTokens(chunkA, true) } returns 350.right() // third, EXCLUDED, not enough tokens remained
+        coEvery { tokenizer.countTokens(chunkD, true) } returns 10.right()  // fourth, EXCLUDED, not enough tokens remained (actually can be included, we should consider it as improvement)
 
         val result = given()
             .contentType(ContentType.JSON)
@@ -105,11 +105,6 @@ class PromptsControllerIntegrationTest(
             .then()
             .statusCode(200)
             .extract().asString()
-
-//        val regex = Regex("""(?s).*?: \[(.*?)](?:,|, ) .*?: \[(.*?)]""")
-//        val match = regex.find(result)
-//        match?.groups?.get(1)?.value shouldBe "$chunkC\n$chunkB"
-//        match?.groups?.get(2)?.value shouldBe prompt
 
         val regex = Regex("""\[(.*?)]""", RegexOption.DOT_MATCHES_ALL)
         val matches = regex.findAll(result).toList()
@@ -129,7 +124,7 @@ class PromptsControllerIntegrationTest(
         "per una selva oscura" to 6
     ).map {
         dynamicTest("${it.first} -> ${it.second}") {
-            every { tokenizer.countTokens(it.first) } returns it.second.right()
+            coEvery { tokenizer.countTokens(it.first, true) } returns it.second.right()
 
             val result = given()
                 .contentType(ContentType.JSON)
