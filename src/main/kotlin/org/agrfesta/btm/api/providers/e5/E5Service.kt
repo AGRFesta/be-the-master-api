@@ -3,10 +3,11 @@ package org.agrfesta.btm.api.providers.e5
 import arrow.core.Either
 import arrow.core.left
 import arrow.core.right
-import kotlinx.coroutines.runBlocking
 import org.agrfesta.btm.api.model.Embedding
 import org.agrfesta.btm.api.model.EmbeddingCreationFailure
 import org.agrfesta.btm.api.model.TokenCountFailure
+import org.agrfesta.btm.api.providers.e5.E5EmbedMode.PASSAGE
+import org.agrfesta.btm.api.providers.e5.E5EmbedMode.QUERY
 import org.agrfesta.btm.api.services.EmbeddingsProvider
 import org.agrfesta.btm.api.services.Tokenizer
 import org.agrfesta.btm.api.services.utils.LoggerDelegate
@@ -20,21 +21,24 @@ class E5Service(
 ): EmbeddingsProvider, Tokenizer {
     private val logger by LoggerDelegate()
 
-    override val name: String
-        get() = TODO("Not yet implemented")
-
-    override fun countTokens(text: String): Either<TokenCountFailure, Int> = runBlocking {
-            client.countTokens(E5CountTokenRequest(listOf(text)))
+    override suspend fun countTokens(text: String, isAQuery: Boolean): Either<TokenCountFailure, Int> =
+        try {
+            client.countTokens(E5CountTokenRequest(listOf(text), if (isAQuery) QUERY else PASSAGE))
                 .tokenCounts
                 .first().tokenCount.right()
+        } catch (e: Exception) {
+            logger.error("Token count failure!", e)
+            TokenCountFailure("Token count failure").left()
         }
 
-    override suspend fun createEmbedding(text: String): Either<EmbeddingCreationFailure, Embedding> =
+    override suspend fun createEmbedding(text: String, isAQuery: Boolean): Either<EmbeddingCreationFailure, Embedding> =
         try {
-            client.embed(E5EmbedRequest(listOf(text))).vectors.first().right()
+            val mode = if (isAQuery) QUERY else PASSAGE
+            logger.info("Creating E5 model embedding, mode $mode")
+            client.embed(E5EmbedRequest(listOf(text), mode)).vectors.first().right()
         } catch (e: Exception) {
             logger.error("Embed failure!", e)
-            EmbeddingCreationFailure.left()
+            EmbeddingCreationFailure("Embed failed").left()
         }
 
 }

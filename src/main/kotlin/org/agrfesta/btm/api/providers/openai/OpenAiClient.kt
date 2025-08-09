@@ -68,7 +68,7 @@ class OpenAiClient(
                 usage = openAiUsage
             ).right()
         } else {
-            EmbeddingCreationFailure.left()
+            EmbeddingCreationFailure("Invalid or missing embeddings array").left()
         }
     }
 

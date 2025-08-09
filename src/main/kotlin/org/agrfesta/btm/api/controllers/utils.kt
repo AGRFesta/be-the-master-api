@@ -15,14 +15,14 @@ import org.springframework.http.ResponseEntity.ok
 //TODO we should reconsider this generic flow, probably better define specific flows, like in the case of Replace Translation flow.
 val btmFlowFailureHandler: (BtmFlowFailure) -> ResponseEntity<Any> = {
     when(it) {
-        EmbeddingCreationFailure -> internalServerError()
+        is EmbeddingCreationFailure -> internalServerError()
             .body(MessageResponse("Unable to create target embedding!"))
         is PersistenceFailure -> internalServerError()
             .body(MessageResponse(it.message))
         is ValidationFailure -> badRequest().body(MessageResponse(it.message))
         is BtmConfigurationFailure -> internalServerError()
             .body(MessageResponse(it.message))
-        TokenCountFailure -> TODO()
+        is TokenCountFailure -> TODO()
     }
 }
 

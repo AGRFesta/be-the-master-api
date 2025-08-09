@@ -28,9 +28,10 @@ interface EmbeddingsProvider {
      * Generates an [Embedding] from the given input [text].
      *
      * @param text the input text to embed.
+     * @param isAQuery is true when [text] is a query.
      * @return an [Either] containing the [Embedding] on success,
      *         or an [EmbeddingCreationFailure] if embedding fails (e.g., model error, invalid input, etc.).
      */
-    suspend fun createEmbedding(text: String): Either<EmbeddingCreationFailure, Embedding>
+    suspend fun createEmbedding(text: String, isAQuery: Boolean): Either<EmbeddingCreationFailure, Embedding>
 
 }

@@ -59,7 +59,7 @@ class ChunksControllerUnitTest(
             .andExpect(status().isBadRequest)
             .andReturn().response.contentAsString
 
-        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
+        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any(), false) }
         asserter.verifyNoTranslationsPersisted()
         asserter.verifyNoEmbeddingsPersisted()
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
@@ -77,7 +77,7 @@ class ChunksControllerUnitTest(
                 .andExpect(status().isBadRequest)
                 .andReturn().response.contentAsString
 
-            coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
+            coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any(), false) }
             asserter.verifyNoTranslationsPersisted()
             asserter.verifyNoEmbeddingsPersisted()
             val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
@@ -96,7 +96,7 @@ class ChunksControllerUnitTest(
                     .andExpect(status().isBadRequest)
                     .andReturn().response.contentAsString
 
-                coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
+                coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any(), false) }
                 asserter.verifyNoTranslationsPersisted()
                 asserter.verifyNoEmbeddingsPersisted()
                 val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
@@ -113,7 +113,7 @@ class ChunksControllerUnitTest(
             .andExpect(status().isBadRequest)
             .andReturn().response.contentAsString
 
-        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
+        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any(), false) }
         asserter.verifyNoTranslationsPersisted()
         asserter.verifyNoEmbeddingsPersisted()
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
@@ -131,7 +131,7 @@ class ChunksControllerUnitTest(
                 .andExpect(status().isBadRequest)
                 .andReturn().response.contentAsString
 
-            coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
+            coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any(), false) }
             asserter.verifyNoTranslationsPersisted()
             asserter.verifyNoEmbeddingsPersisted()
             val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
@@ -148,7 +148,7 @@ class ChunksControllerUnitTest(
             .andExpect(status().isBadRequest)
             .andReturn().response.contentAsString
 
-        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
+        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any(), false) }
         asserter.verifyNoTranslationsPersisted()
         asserter.verifyNoEmbeddingsPersisted()
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
@@ -166,9 +166,9 @@ class ChunksControllerUnitTest(
         val embA = anEmbedding()
         val embB = anEmbedding()
         val embC = anEmbedding()
-        coEvery { embeddingsProvider.createEmbedding(textA) } returns embA.right()
-        coEvery { embeddingsProvider.createEmbedding(textB) } returns embB.right()
-        coEvery { embeddingsProvider.createEmbedding(textC) } returns embC.right()
+        coEvery { embeddingsProvider.createEmbedding(textA, false) } returns embA.right()
+        coEvery { embeddingsProvider.createEmbedding(textB, false) } returns embB.right()
+        coEvery { embeddingsProvider.createEmbedding(textC, false) } returns embC.right()
         val tA = UUID.randomUUID()
         val tB = UUID.randomUUID()
         val tC = UUID.randomUUID()
@@ -192,7 +192,7 @@ class ChunksControllerUnitTest(
             .andExpect(status().isOk)
             .andReturn().response.contentAsString
 
-        coVerify(exactly = 3) { embeddingsProvider.createEmbedding(any()) }
+        coVerify(exactly = 3) { embeddingsProvider.createEmbedding(any(), false) }
         verify(exactly = 3) { translationsDao.addOrReplace(any(), any(), any()) }
         verify(exactly = 2) { translationsDao.setEmbeddingStatus(any(), EMBEDDED) }
         verify { translationsDao.setEmbeddingStatus(tA, EMBEDDED) }
@@ -210,8 +210,8 @@ class ChunksControllerUnitTest(
         every { chunksDao.persist(topic, game) } returns cA andThenThrows Exception("failure") andThen cC
         val embA = anEmbedding()
         val embC = anEmbedding()
-        coEvery { embeddingsProvider.createEmbedding(textA) } returns embA.right()
-        coEvery { embeddingsProvider.createEmbedding(textC) } returns embC.right()
+        coEvery { embeddingsProvider.createEmbedding(textA, false) } returns embA.right()
+        coEvery { embeddingsProvider.createEmbedding(textC, false) } returns embC.right()
         val tA = UUID.randomUUID()
         val tC = UUID.randomUUID()
         every { translationsDao.addOrReplace(cA, language, textA) } returns tA
@@ -232,9 +232,9 @@ class ChunksControllerUnitTest(
             .andExpect(status().isOk)
             .andReturn().response.contentAsString
 
-        coVerify(exactly = 2) { embeddingsProvider.createEmbedding(any()) }
-        coVerify { embeddingsProvider.createEmbedding(textA) }
-        coVerify { embeddingsProvider.createEmbedding(textC) }
+        coVerify(exactly = 2) { embeddingsProvider.createEmbedding(any(), false) }
+        coVerify { embeddingsProvider.createEmbedding(textA, false) }
+        coVerify { embeddingsProvider.createEmbedding(textC, false) }
         verify(exactly = 2) { translationsDao.addOrReplace(any(), any(), any()) }
         verify { translationsDao.addOrReplace(cA, language, textA) }
         verify { translationsDao.addOrReplace(cC, language, textC) }
@@ -262,7 +262,7 @@ class ChunksControllerUnitTest(
                 .andReturn().response.contentAsString
 
             verify(exactly = 0) { chunksDao.persist(any(), any()) }
-            coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
+            coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any(), false) }
             verify(exactly = 0) { embeddingsDao.persist(any(), any()) }
             verify(exactly = 0) { translationsDao.setEmbeddingStatus(any(), any()) }
             val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
@@ -280,7 +280,7 @@ class ChunksControllerUnitTest(
             .andExpect(status().isInternalServerError)
             .andReturn().response.contentAsString
 
-        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
+        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any(), false) }
         verify(exactly = 0) { embeddingsDao.persist(any(), any()) }
         verify(exactly = 0) { translationsDao.setEmbeddingStatus(any(), any()) }
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
@@ -300,7 +300,7 @@ class ChunksControllerUnitTest(
             .andExpect(status().isInternalServerError)
             .andReturn().response.contentAsString
 
-        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
+        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any(), false) }
         verify(exactly = 0) { embeddingsDao.persist(any(), any()) }
         verify(exactly = 0) { translationsDao.setEmbeddingStatus(any(), any()) }
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
@@ -447,7 +447,9 @@ class ChunksControllerUnitTest(
 
     @Test fun `similaritySearch() Returns 500 when fails to create request text embedding`() {
         val request = aChunkSearchBySimilarityRequest()
-        coEvery { embeddingsProvider.createEmbedding(request.text) } returns EmbeddingCreationFailure.left()
+        coEvery {
+            embeddingsProvider.createEmbedding(request.text, false)
+        } returns EmbeddingCreationFailure("an embedding failure").left()
 
         val responseBody: String = mockMvc.perform(
             post("/chunks/similarity-search")
@@ -466,7 +468,7 @@ class ChunksControllerUnitTest(
         val failure = Exception("embeddings fetch failure")
         val request = aChunkSearchBySimilarityRequest(game = game, topic = topic)
         val targetEmbedding = anEmbedding()
-        coEvery { embeddingsProvider.createEmbedding(request.text) } returns targetEmbedding.right()
+        coEvery { embeddingsProvider.createEmbedding(request.text, false) } returns targetEmbedding.right()
         every {
             embeddingsDao.searchBySimilarity(targetEmbedding, game, topic, request.language, any(), any())
         } throws failure
