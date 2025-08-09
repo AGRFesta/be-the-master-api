@@ -60,7 +60,7 @@ class ChunksControllerUnitTest(
             .andExpect(status().isBadRequest)
             .andReturn().response.contentAsString
 
-        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
+        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any(), false) }
         asserter.verifyNoTranslationsPersisted()
         asserter.verifyNoEmbeddingsPersisted()
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
@@ -91,7 +91,7 @@ class ChunksControllerUnitTest(
             .andExpect(status().isBadRequest)
             .andReturn().response.contentAsString
 
-        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
+        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any(), false) }
         asserter.verifyNoTranslationsPersisted()
         asserter.verifyNoEmbeddingsPersisted()
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
@@ -289,7 +289,7 @@ class ChunksControllerUnitTest(
             .andReturn().response.contentAsString
 
         verify(exactly = 0) { chunksDao.persist(any(), any()) }
-        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
+        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any(), false) }
         verify(exactly = 0) { embeddingsDao.persist(any(), any()) }
         verify(exactly = 0) { translationsDao.setEmbeddingStatus(any(), any()) }
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
@@ -306,7 +306,7 @@ class ChunksControllerUnitTest(
             .andReturn().response.contentAsString
 
         verify(exactly = 0) { chunksDao.persist(any(), any()) }
-        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
+        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any(), false) }
         verify(exactly = 0) { embeddingsDao.persist(any(), any()) }
         verify(exactly = 0) { translationsDao.setEmbeddingStatus(any(), any()) }
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)

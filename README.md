@@ -1,6 +1,6 @@
 # Be the Master!
 
-[![Version](https://img.shields.io/badge/version-0.1.1-blue.svg)](https://semver.org)
+[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://semver.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Kotlin](https://img.shields.io/badge/Kotlin-1.9.24-orange.svg)](https://kotlinlang.org/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.3-brightgreen.svg)](https://spring.io/projects/spring-boot)

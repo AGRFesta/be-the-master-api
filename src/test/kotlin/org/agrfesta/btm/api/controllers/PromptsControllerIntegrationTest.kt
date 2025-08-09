@@ -130,9 +130,9 @@ class PromptsControllerIntegrationTest(
         )
         givenChunkEmbedding(game, topic, language = language, text = chunkA, embeddingA)
         givenChunkEmbedding(game, topic, language = language, text = chunkB, embeddingB)
-        coEvery { embeddingsProvider.createEmbedding(prompt) } returns target.right()
-        every { tokenizer.countTokens(chunkB) } returns 1.right()
-        every { tokenizer.countTokens(chunkA) } returns 700.right()
+        coEvery { embeddingsProvider.createEmbedding(prompt, true) } returns target.right()
+        coEvery { tokenizer.countTokens(chunkB, true) } returns 1.right()
+        coEvery { tokenizer.countTokens(chunkA, true) } returns 700.right()
 
         val result = given()
             .contentType(ContentType.JSON)

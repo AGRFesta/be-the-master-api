@@ -9,9 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- Initial structure for version 0.2.0 development.
-
 [Compare changes →][Unreleased]
 
 ---
