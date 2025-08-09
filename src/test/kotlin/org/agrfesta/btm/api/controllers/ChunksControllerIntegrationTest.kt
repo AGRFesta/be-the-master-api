@@ -85,9 +85,9 @@ class ChunksControllerIntegrationTest(
         val embA = anEmbedding()
         val embB = anEmbedding()
         val embC = anEmbedding()
-        coEvery { embeddingsProvider.createEmbedding(textA) } returns embA.right()
-        coEvery { embeddingsProvider.createEmbedding(textB) } returns embB.right()
-        coEvery { embeddingsProvider.createEmbedding(textC) } returns embC.right()
+        coEvery { embeddingsProvider.createEmbedding(textA, false) } returns embA.right()
+        coEvery { embeddingsProvider.createEmbedding(textB, false) } returns embB.right()
+        coEvery { embeddingsProvider.createEmbedding(textC, false) } returns embC.right()
 
         val result = given()
             .contentType(ContentType.JSON)
@@ -141,9 +141,11 @@ class ChunksControllerIntegrationTest(
             texts = listOf(textA, textB, textC))
         val embA = anEmbedding()
         val embC = anEmbedding()
-        coEvery { embeddingsProvider.createEmbedding(textA) } returns embA.right()
-        coEvery { embeddingsProvider.createEmbedding(textB) } returns EmbeddingCreationFailure.left()
-        coEvery { embeddingsProvider.createEmbedding(textC) } returns embC.right()
+        coEvery { embeddingsProvider.createEmbedding(textA, false) } returns embA.right()
+        coEvery {
+            embeddingsProvider.createEmbedding(textB, false)
+        } returns EmbeddingCreationFailure("an embedding failure").left()
+        coEvery { embeddingsProvider.createEmbedding(textC, false) } returns embC.right()
 
         val result = given()
             .contentType(ContentType.JSON)
@@ -188,10 +190,10 @@ class ChunksControllerIntegrationTest(
         val embB = anEmbedding()
         val embC = anEmbedding()
         val embD = anEmbedding()
-        coEvery { embeddingsProvider.createEmbedding(textA) } returns embA.right()
-        coEvery { embeddingsProvider.createEmbedding(textB) } returns embB.right()
-        coEvery { embeddingsProvider.createEmbedding(textC) } returns embC.right()
-        coEvery { embeddingsProvider.createEmbedding(textD) } returns embD.right()
+        coEvery { embeddingsProvider.createEmbedding(textA, false) } returns embA.right()
+        coEvery { embeddingsProvider.createEmbedding(textB, false) } returns embB.right()
+        coEvery { embeddingsProvider.createEmbedding(textC, false) } returns embC.right()
+        coEvery { embeddingsProvider.createEmbedding(textD, false) } returns embD.right()
 
         val result = given()
             .contentType(ContentType.JSON)
@@ -244,7 +246,7 @@ class ChunksControllerIntegrationTest(
             .`as`(MessageResponse::class.java)
 
         result.message shouldBe "2 Chunks successfully persisted!"
-        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any()) }
+        coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any(), false) }
 
         val tweA = testChunksRepo.getTranslationWithEmbedding(language, textA).shouldNotBeNull()
         tweA.vector.shouldBeNull()
@@ -373,7 +375,7 @@ class ChunksControllerIntegrationTest(
             val uuid: UUID = UUID.randomUUID()
             chunksRepo.insert(uuid, Game.MAUSRITTER, topic, now)
             val embedding = anEmbedding()
-            coEvery { embeddingsProvider.createEmbedding(text) } returns embedding.right()
+            coEvery { embeddingsProvider.createEmbedding(text, false) } returns embedding.right()
 
             val result = given()
                 .contentType(ContentType.JSON)
@@ -412,7 +414,7 @@ class ChunksControllerIntegrationTest(
                 creationTime))
         val embeddingId: UUID = UUID.randomUUID()
         embeddingRepo.insertEmbedding(embeddingId, translationId, embedding, now)
-        coEvery { embeddingsProvider.createEmbedding(request.text) } returns newEmbedding.right()
+        coEvery { embeddingsProvider.createEmbedding(request.text, false) } returns newEmbedding.right()
 
         val result = given()
             .contentType(ContentType.JSON)
@@ -449,7 +451,9 @@ class ChunksControllerIntegrationTest(
                 creationTime))
         val embeddingId: UUID = UUID.randomUUID()
         embeddingRepo.insertEmbedding(embeddingId, translationId, embedding, now)
-        coEvery { embeddingsProvider.createEmbedding(request.text) } returns EmbeddingCreationFailure.left()
+        coEvery {
+            embeddingsProvider.createEmbedding(request.text, false)
+        } returns EmbeddingCreationFailure("an embedding failure").left()
 
         val result = given()
             .contentType(ContentType.JSON)
@@ -475,7 +479,7 @@ class ChunksControllerIntegrationTest(
     @Test fun `similaritySearch() Returns empty list when there are no chunks`() {
         val request = aChunkSearchBySimilarityRequest()
         val targetEmbedding = anEmbedding()
-        coEvery { embeddingsProvider.createEmbedding(request.text) } returns targetEmbedding.right()
+        coEvery { embeddingsProvider.createEmbedding(request.text, false) } returns targetEmbedding.right()
 
         val result = given()
             .contentType(ContentType.JSON)
@@ -507,7 +511,7 @@ class ChunksControllerIntegrationTest(
         givenChunkEmbedding(game = game, language = language, topic = topic, text = "text C", embedding = embeddingC)
         givenChunkEmbedding(game = game, language = language, topic = topic, text = "text D", embedding = embeddingD)
         givenChunkEmbedding(game = game, language = language, topic = topic, text = "text E", embedding = embeddingE)
-        coEvery { embeddingsProvider.createEmbedding(text) } returns targetEmbedding.right()
+        coEvery { embeddingsProvider.createEmbedding(text, false) } returns targetEmbedding.right()
 
         val result = given()
             .contentType(ContentType.JSON)
@@ -540,7 +544,7 @@ class ChunksControllerIntegrationTest(
         givenChunkEmbedding(game = anotherGame, language = language, topic = topic, text = "text C", embedding = embC)
         givenChunkEmbedding(game = game, language = language, topic = topic, text = "text D", embedding = embD)
         givenChunkEmbedding(game = game, language = language, topic = topic, text = "text E", embedding = embE)
-        coEvery { embeddingsProvider.createEmbedding(text) } returns targetEmbedding.right()
+        coEvery { embeddingsProvider.createEmbedding(text, false) } returns targetEmbedding.right()
 
         val result = given()
             .contentType(ContentType.JSON)
@@ -573,7 +577,7 @@ class ChunksControllerIntegrationTest(
         givenChunkEmbedding(topic = anotherTopic, language = language, game = game, text = "text C", embedding = embC)
         givenChunkEmbedding(topic = topic, language = language, game = game, text = "text D", embedding = embD)
         givenChunkEmbedding(topic = topic, language = language, game = game, text = "text E", embedding = embE)
-        coEvery { embeddingsProvider.createEmbedding(text) } returns targetEmbedding.right()
+        coEvery { embeddingsProvider.createEmbedding(text, false) } returns targetEmbedding.right()
 
         val result = given()
             .contentType(ContentType.JSON)
@@ -588,6 +592,7 @@ class ChunksControllerIntegrationTest(
         result.map { it.text }.shouldContainExactly("text D", "text A", "text E")
     }
 
+    //TODO fix this suspected flaky test
     @Test fun `similaritySearch() Do not returns same game and topic but different language texts`() {
         val game = aGame()
         val topic = aTopic()
@@ -606,7 +611,7 @@ class ChunksControllerIntegrationTest(
         givenChunkEmbedding(language = another, topic = topic, game = game, text = "text C", embedding = embeddingC)
         givenChunkEmbedding(language = language, topic = topic, game = game, text = "text D", embedding = embeddingD)
         givenChunkEmbedding(language = language, topic = topic, game = game, text = "text E", embedding = embeddingE)
-        coEvery { embeddingsProvider.createEmbedding(text) } returns targetEmbedding.right()
+        coEvery { embeddingsProvider.createEmbedding(text, false) } returns targetEmbedding.right()
 
         val result = given()
             .contentType(ContentType.JSON)
@@ -641,7 +646,7 @@ class ChunksControllerIntegrationTest(
         givenChunkEmbedding(language = language, topic = topic, game = game, text = "text C", embedding = embeddingC)
         givenChunkEmbedding(language = language, topic = topic, game = game, text = "text D", embedding = embeddingD)
         givenChunkEmbedding(language = language, topic = topic, game = game, text = "text E", embedding = embeddingE)
-        coEvery { embeddingsProvider.createEmbedding(text) } returns targetEmbedding.right()
+        coEvery { embeddingsProvider.createEmbedding(text, false) } returns targetEmbedding.right()
 
         val result = given()
             .contentType(ContentType.JSON)
@@ -676,7 +681,7 @@ class ChunksControllerIntegrationTest(
         givenChunkEmbedding(language = language, topic = topic, game = game, text = "text C", embedding = embeddingC)
         givenChunkEmbedding(language = language, topic = topic, game = game, text = "text D", embedding = embeddingD)
         givenChunkEmbedding(language = language, topic = topic, game = game, text = "text E", embedding = embeddingE)
-        coEvery { embeddingsProvider.createEmbedding(text) } returns targetEmbedding.right()
+        coEvery { embeddingsProvider.createEmbedding(text, false) } returns targetEmbedding.right()
 
         val result = given()
             .contentType(ContentType.JSON)

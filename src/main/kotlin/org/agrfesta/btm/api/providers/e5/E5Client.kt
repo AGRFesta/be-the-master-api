@@ -54,8 +54,11 @@ class E5Client(
 
 }
 
+enum class E5EmbedMode {QUERY, PASSAGE}
+
 data class E5EmbedRequest(
-    val sentences: List<String>
+    val sentences: List<String>,
+    val mode: E5EmbedMode
 )
 
 data class E5EmbedResponse(
@@ -63,7 +66,8 @@ data class E5EmbedResponse(
 )
 
 data class E5CountTokenRequest(
-    val sentences: List<String>
+    val sentences: List<String>,
+    val mode: E5EmbedMode
 )
 
 data class E5CountTokensResponse(

@@ -18,6 +18,6 @@ class JTokkitTextEmbeddingsAda002: Tokenizer {
     private val registry: EncodingRegistry = newDefaultEncodingRegistry()
     private val enc: Encoding = registry.getEncodingForModel(modelType)
 
-    override val name: String = modelType.name
-    override fun countTokens(text: String): Either<TokenCountFailure, Int> = enc.countTokens(text).right()
+    override suspend fun countTokens(text: String, isAQuery: Boolean): Either<TokenCountFailure, Int> =
+        enc.countTokens(text).right()
 }
