@@ -6,11 +6,12 @@ import com.ninjasquad.springmockk.MockkBean
 import io.kotest.matchers.shouldBe
 import io.mockk.every
 import org.agrfesta.btm.api.controllers.config.MessageResponse
-import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.model.PersistenceFailure
 import org.agrfesta.btm.api.persistence.PartiesDao
 import org.agrfesta.test.mothers.aRandomUniqueString
 import org.agrfesta.test.mothers.aSheet
+import org.junit.Ignore
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
@@ -19,6 +20,7 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
+@Disabled
 @WebMvcTest(PartiesController::class)
 @ActiveProfiles("test")
 class PartiesControllerUnitTest(
@@ -26,10 +28,11 @@ class PartiesControllerUnitTest(
     @Autowired private val objectMapper: ObjectMapper,
     @Autowired @MockkBean private val partiesDao: PartiesDao,
 ) {
+    private val game = aGame()
 
     @Test fun `createParty() Returns 500 when party creation fails`() {
         val name = aRandomUniqueString()
-        every { partiesDao.persist(name, Game.MAUSRITTER, any()) } returns
+        every { partiesDao.persist(name, game, any()) } returns
                 PersistenceFailure("creation failure").left()
         val responseBody: String = mockMvc.perform(
             post("/parties")

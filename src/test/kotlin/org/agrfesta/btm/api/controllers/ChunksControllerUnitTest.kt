@@ -32,6 +32,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.util.*
+import org.agrfesta.btm.api.persistence.GamesDao
 
 @WebMvcTest(ChunksController::class)
 @Import(ChunksService::class, ChunksUnitAsserter::class)
@@ -41,6 +42,7 @@ class ChunksControllerUnitTest(
     @Autowired private val objectMapper: ObjectMapper,
     @Autowired private val asserter: ChunksUnitAsserter,
     @Autowired @MockkBean private val chunksDao: ChunksDao,
+    @Autowired @MockkBean private val gamesDao: GamesDao,
     @Autowired @MockkBean private val embeddingsDao: EmbeddingsDao,
     @Autowired @MockkBean private val translationsDao: TranslationsDao,
     @Autowired @MockkBean private val embeddingsProvider: EmbeddingsProvider
@@ -49,6 +51,10 @@ class ChunksControllerUnitTest(
     private val topic = aTopic()
     private val language = aLanguage()
     private val uuid = UUID.randomUUID()
+
+    init {
+        every { gamesDao.findGameByName(game.name) } returns game
+    }
 
     ///// createChunks /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -133,20 +139,22 @@ class ChunksControllerUnitTest(
             }
         }
 
-    @Test fun `createChunks() Returns 400 when game is not valid`() {
-        val requestJson = aChunksCreationRequestJson(game = aRandomUniqueString())
+    @Test fun `createChunks() Returns 404 when Game is not found`() {
+        val gameName = aRandomUniqueString()
+        val requestJson = aChunksCreationRequestJson(game = gameName)
+        every { gamesDao.findGameByName(gameName) } returns null
         val responseBody: String = mockMvc.perform(
             post("/chunks")
                 .contentType("application/json")
                 .content(requestJson))
-            .andExpect(status().isBadRequest)
+            .andExpect(status().isNotFound)
             .andReturn().response.contentAsString
 
         coVerify(exactly = 0) { embeddingsProvider.createEmbedding(any(), false) }
         asserter.verifyNoTranslationsPersisted()
         asserter.verifyNoEmbeddingsPersisted()
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-        response.message shouldBe "game is not valid!"
+        response.message shouldBe "game $gameName is missing!"
     }
 
     @TestFactory
@@ -188,7 +196,7 @@ class ChunksControllerUnitTest(
         val cA = UUID.randomUUID()
         val cB = UUID.randomUUID()
         val cC = UUID.randomUUID()
-        every { chunksDao.persist(topic, game) } returnsMany listOf(cA, cB, cC)
+        every { chunksDao.persist(topic, game.name) } returnsMany listOf(cA, cB, cC)
         val textA = aRandomUniqueString()
         val textB = aRandomUniqueString()
         val textC = aRandomUniqueString()
@@ -236,7 +244,7 @@ class ChunksControllerUnitTest(
         val textC = aRandomUniqueString()
         val cA = UUID.randomUUID()
         val cC = UUID.randomUUID()
-        every { chunksDao.persist(topic, game) } returns cA andThenThrows Exception("failure") andThen cC
+        every { chunksDao.persist(topic, game.name) } returns cA andThenThrows Exception("failure") andThen cC
         val embA = anEmbedding()
         val embC = anEmbedding()
         coEvery { embeddingsProvider.createEmbedding(textA, false) } returns embA.right()
@@ -405,18 +413,20 @@ class ChunksControllerUnitTest(
         response.message shouldBe "language is not valid!"
     }
 
-    @Test fun `similaritySearch() Returns 400 when Game is not valid`() {
-        val requestJson = aChunkSearchBySimilarityRequestJson(game = aRandomUniqueString())
+    @Test fun `similaritySearch() Returns 404 when Game is not found`() {
+        val gameName = aRandomUniqueString()
+        val requestJson = aChunkSearchBySimilarityRequestJson(game = gameName)
+        every { gamesDao.findGameByName(gameName) } returns null
         val responseBody: String = mockMvc.perform(
             post("/chunks/similarity-search")
                 .contentType("application/json")
                 .content(requestJson))
-            .andExpect(status().isBadRequest)
+            .andExpect(status().isNotFound)
             .andReturn().response.contentAsString
 
         verify(exactly = 0) { embeddingsDao.searchBySimilarity(any(), any(), any(), any(), any(), any()) }
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-        response.message shouldBe "game is not valid!"
+        response.message shouldBe "game $gameName is missing!"
     }
 
     @TestFactory
@@ -506,7 +516,7 @@ class ChunksControllerUnitTest(
         }
 
     @Test fun `similaritySearch() Returns 500 when fails to create request text embedding`() {
-        val request = aChunkSearchBySimilarityRequest()
+        val request = aChunkSearchBySimilarityRequest(game = game.name)
         coEvery {
             embeddingsProvider.createEmbedding(request.text, false)
         } returns EmbeddingCreationFailure("an embedding failure").left()
@@ -523,14 +533,13 @@ class ChunksControllerUnitTest(
     }
 
     @Test fun `similaritySearch() Returns 500 when fails to fetch embeddings`() {
-        val game = aGame()
         val topic = aTopic()
         val failure = Exception("embeddings fetch failure")
-        val request = aChunkSearchBySimilarityRequest(game = game, topic = topic)
+        val request = aChunkSearchBySimilarityRequest(game = game.name, topic = topic)
         val targetEmbedding = anEmbedding()
         coEvery { embeddingsProvider.createEmbedding(request.text, false) } returns targetEmbedding.right()
         every {
-            embeddingsDao.searchBySimilarity(targetEmbedding, game, topic, request.language, any(), any())
+            embeddingsDao.searchBySimilarity(targetEmbedding, game.name, topic, request.language, any(), any())
         } throws failure
 
         val responseBody: String = mockMvc.perform(

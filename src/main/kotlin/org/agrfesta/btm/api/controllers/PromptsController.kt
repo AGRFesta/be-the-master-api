@@ -11,6 +11,7 @@ import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Positive
 import java.util.*
 import kotlinx.coroutines.runBlocking
+import org.agrfesta.btm.api.controllers.config.MessageResponse
 import org.agrfesta.btm.api.controllers.config.toResponseEntity
 import org.agrfesta.btm.api.model.BtmConfigurationFailure
 import org.agrfesta.btm.api.model.BtmFlowFailure
@@ -20,6 +21,7 @@ import org.agrfesta.btm.api.model.PersistenceFailure
 import org.agrfesta.btm.api.model.SupportedLanguage
 import org.agrfesta.btm.api.model.Topic
 import org.agrfesta.btm.api.persistence.EmbeddingsDao
+import org.agrfesta.btm.api.persistence.GamesDao
 import org.agrfesta.btm.api.persistence.PartiesDao
 import org.agrfesta.btm.api.persistence.jdbc.repositories.GlossariesRepository
 import org.agrfesta.btm.api.services.ChunksService.Companion.DEFAULT_DISTANCE_LIMIT
@@ -51,6 +53,7 @@ class PromptsController(
     private val config: PromptEnhanceConfiguration,
     private val tokenizer: Tokenizer,
     private val partiesDao: PartiesDao,
+    private val gamesDao: GamesDao,
     private val embeddingsProvider: EmbeddingsProvider,
     private val embeddingsDao: EmbeddingsDao,
     private val glossariesRepository: GlossariesRepository
@@ -161,6 +164,8 @@ class PromptsController(
      */
     @PostMapping("/enhance/basic")
     fun enhanceBasicPrompt(@Valid @RequestBody request: BasicPromptEnhanceRequest): ResponseEntity<Any> {
+        val game = gamesDao.findGameByName(request.game)
+            ?: return status(404).body(MessageResponse("game ${request.game} is missing!"))
         return runBlocking {
             logger.info("Creating prompt embedding...")
             embeddingsProvider.createEmbedding(request.prompt, true)
@@ -222,7 +227,7 @@ data class PromptEnhanceRequest(val partyId: UUID, val prompt: String)
 data class TranslationPromptRequest(val game: Game, val text: String)
 
 data class BasicPromptEnhanceRequest(
-    val game: Game,
+    val game: String,
 
     val topic: Topic,
 

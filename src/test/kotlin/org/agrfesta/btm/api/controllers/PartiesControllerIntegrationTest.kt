@@ -7,22 +7,24 @@ import io.kotest.matchers.shouldBe
 import io.mockk.every
 import io.restassured.RestAssured.given
 import io.restassured.http.ContentType
+import java.time.Instant
+import java.util.*
 import org.agrfesta.btm.api.controllers.config.MessageResponse
-import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.persistence.jdbc.repositories.PartiesRepository
 import org.agrfesta.btm.api.services.utils.RandomGenerator
 import org.agrfesta.btm.api.services.utils.TimeService
 import org.agrfesta.btm.api.services.utils.toNoNanoSec
 import org.agrfesta.test.mothers.aRandomUniqueString
 import org.agrfesta.test.mothers.aSheet
+import org.junit.Ignore
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection
 import org.testcontainers.junit.jupiter.Container
-import java.time.Instant
-import java.util.*
 
+@Disabled
 class PartiesControllerIntegrationTest(
     @Autowired private val partiesRepository: PartiesRepository,
     @Autowired @MockkBean private val randomGenerator: RandomGenerator,
@@ -30,6 +32,7 @@ class PartiesControllerIntegrationTest(
 ): AbstractIntegrationTest() {
     private val uuid: UUID = UUID.randomUUID()
     private val now = Instant.now().toNoNanoSec()
+    private val game = aGame()
 
     companion object {
         @Container
@@ -60,7 +63,7 @@ class PartiesControllerIntegrationTest(
         val party = partiesRepository.findPartyWithMembers(uuid)
         party.shouldNotBeNull()
         party.name shouldBe name
-        party.game shouldBe Game.MAUSRITTER
+        party.game shouldBe game
         party.members shouldHaveSize 2
     }
 

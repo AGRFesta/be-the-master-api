@@ -14,18 +14,21 @@ import io.mockk.every
 import io.restassured.RestAssured.given
 import io.restassured.common.mapper.TypeRef
 import io.restassured.http.ContentType
+import java.time.Instant
+import java.util.*
 import org.agrfesta.btm.api.controllers.config.MessageResponse
 import org.agrfesta.btm.api.model.EmbeddingCreationFailure
 import org.agrfesta.btm.api.model.EmbeddingStatus.EMBEDDED
 import org.agrfesta.btm.api.model.EmbeddingStatus.UNEMBEDDED
-import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.model.SupportedLanguage
 import org.agrfesta.btm.api.model.Topic
 import org.agrfesta.btm.api.persistence.TestingChunksRepository
 import org.agrfesta.btm.api.persistence.jdbc.entities.TranslationEntity
+import org.agrfesta.btm.api.persistence.jdbc.entities.aGameEntity
 import org.agrfesta.btm.api.persistence.jdbc.entities.aTranslationEntity
 import org.agrfesta.btm.api.persistence.jdbc.repositories.ChunksRepository
 import org.agrfesta.btm.api.persistence.jdbc.repositories.EmbeddingRepository
+import org.agrfesta.btm.api.persistence.jdbc.repositories.GamesRepository
 import org.agrfesta.btm.api.persistence.jdbc.repositories.TranslationsRepository
 import org.agrfesta.btm.api.services.EmbeddingsProvider
 import org.agrfesta.btm.api.services.utils.TimeService
@@ -34,18 +37,20 @@ import org.agrfesta.test.mothers.aNormalizedEmbedding
 import org.agrfesta.test.mothers.aRandomUniqueString
 import org.agrfesta.test.mothers.anEmbedding
 import org.agrfesta.test.mothers.generateVectorWithDistance
+import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
+import org.junit.jupiter.api.TestInstance
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection
 import org.testcontainers.junit.jupiter.Container
-import java.time.Instant
-import java.util.*
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ChunksControllerIntegrationTest(
     @Autowired private val testChunksRepo: TestingChunksRepository,
+    @Autowired private val gamesRepo: GamesRepository,
     @Autowired private val chunksRepo: ChunksRepository,
     @Autowired private val embeddingRepo: EmbeddingRepository,
     @Autowired private val translationsRepo: TranslationsRepository,
@@ -63,9 +68,16 @@ class ChunksControllerIntegrationTest(
     private val uuid: UUID = UUID.randomUUID()
     private val now = Instant.now().toNoNanoSec()
     private val text = aRandomUniqueString()
-    private val game = aGame()
+    private val game = aGameEntity()
     private val topic = aTopic()
     private val language = aLanguage()
+
+    @BeforeAll
+    fun globalSetup() {
+        if (!gamesRepo.existsByName(game.name)) {
+            gamesRepo.insert(game.id, game.name, game.description)
+        }
+    }
 
     @BeforeEach
     fun defaultMockBehaviourSetup() {
@@ -280,9 +292,11 @@ class ChunksControllerIntegrationTest(
         val result = given()
             .contentType(ContentType.JSON)
             .body(request)
+            .log().ifValidationFails()
             .`when`()
             .post("/chunks")
             .then()
+            .log().ifValidationFails()
             .statusCode(200)
             .extract()
             .`as`(MessageResponse::class.java)
@@ -341,7 +355,7 @@ class ChunksControllerIntegrationTest(
         val request = aChunkTranslationsPatchRequest(inBatch = true, language = SupportedLanguage.EN) //de
         val uuid: UUID = UUID.randomUUID()
         val creationTime = now.minusSeconds(50_000)
-        chunksRepo.insert(uuid, Game.MAUSRITTER, topic, creationTime)
+        chunksRepo.insert(uuid, game.id, topic, creationTime)
         val original = aTranslationEntity(chunkId = uuid, language = SupportedLanguage.EN)
         val itTranslation = aTranslationEntity(chunkId = uuid, language = SupportedLanguage.IT)
         val frTranslation = aTranslationEntity(chunkId = uuid, language = SupportedLanguage.IT) // fr
@@ -374,17 +388,21 @@ class ChunksControllerIntegrationTest(
         """{"text": "$text", "language": "IT"}"""
     ).map {
         dynamicTest(" -> '$it'") {
+            val game = aGameEntity()
             val uuid: UUID = UUID.randomUUID()
-            chunksRepo.insert(uuid, Game.MAUSRITTER, topic, now)
+            gamesRepo.insert(game.id, game.name, game.description)
+            chunksRepo.insert(uuid, game.id, topic, now)
             val embedding = anEmbedding()
             coEvery { embeddingsProvider.createEmbedding(text, false) } returns embedding.right()
 
             val result = given()
                 .contentType(ContentType.JSON)
                 .body(it)
+                .log().ifValidationFails()
                 .`when`()
                 .patch("/chunks/$uuid")
                 .then()
+                .log().ifValidationFails()
                 .statusCode(200)
                 .extract()
                 .`as`(MessageResponse::class.java)
@@ -399,12 +417,13 @@ class ChunksControllerIntegrationTest(
     }
 
     @Test fun `update() Replace chunk text and embedding when inBatch is false`() {
+        val uuid = UUID.randomUUID()
         val originalText = aRandomUniqueString()
         val embedding = anEmbedding()
         val newEmbedding = anEmbedding()
         val request = aChunkTranslationsPatchRequest(language = SupportedLanguage.IT, inBatch = false)
         val creationTime = now.minusSeconds(50_000)
-        chunksRepo.insert(uuid, Game.MAUSRITTER, topic, creationTime)
+        chunksRepo.insert(uuid, game.id, topic, creationTime)
         val translationId = UUID.randomUUID()
         translationsRepo.insert(
             TranslationEntity(
@@ -437,11 +456,12 @@ class ChunksControllerIntegrationTest(
     }
 
     @Test fun `update() Replace a translation removing old embedding when new embedding creation fails`() {
+        val uuid = UUID.randomUUID()
         val originalText = aRandomUniqueString()
         val embedding = anEmbedding().normalize()
         val request = aChunkTranslationsPatchRequest(language = SupportedLanguage.IT, inBatch = false)
         val creationTime = now.minusSeconds(50_000)
-        chunksRepo.insert(uuid, Game.MAUSRITTER, topic, creationTime)
+        chunksRepo.insert(uuid, game.id, topic, creationTime)
         val translationId = UUID.randomUUID()
         translationsRepo.insert(
             TranslationEntity(
@@ -479,16 +499,18 @@ class ChunksControllerIntegrationTest(
     ///// similaritySearch /////////////////////////////////////////////////////////////////////////////////////////////
 
     @Test fun `similaritySearch() Returns empty list when there are no chunks`() {
-        val request = aChunkSearchBySimilarityRequest()
+        val request = aChunkSearchBySimilarityRequest(game = game.name)
         val targetEmbedding = anEmbedding()
         coEvery { embeddingsProvider.createEmbedding(request.text, false) } returns targetEmbedding.right()
 
         val result = given()
             .contentType(ContentType.JSON)
             .body(request.toJsonString())
+            .log().ifValidationFails()
             .`when`()
             .post("/chunks/similarity-search")
             .then()
+            .log().ifValidationFails()
             .statusCode(200)
             .extract()
             .`as`(object : TypeRef<List<SimilarityResultItem>>() {})
@@ -497,7 +519,6 @@ class ChunksControllerIntegrationTest(
     }
 
     @Test fun `similaritySearch() Returns similar chunks only, sorted by descending similarity`() {
-        val game = aGame()
         val topic = aTopic()
         val language = aLanguage()
         val request = aChunkSearchBySimilarityRequestJson(
@@ -518,9 +539,11 @@ class ChunksControllerIntegrationTest(
         val result = given()
             .contentType(ContentType.JSON)
             .body(request)
+            .log().ifValidationFails()
             .`when`()
             .post("/chunks/similarity-search")
             .then()
+            .log().ifValidationFails()
             .statusCode(200)
             .extract()
             .`as`(object : TypeRef<List<SimilarityResultItem>>() {})
@@ -529,7 +552,8 @@ class ChunksControllerIntegrationTest(
     }
 
     @Test fun `similaritySearch() Do not returns same topic and language but different game texts`() {
-        val game = aGame()
+        val anotherGame = aGameEntity()
+        gamesRepo.insert(anotherGame.id, anotherGame.name, anotherGame.description)
         val topic = aTopic()
         val language = aLanguage()
         val request = aChunkSearchBySimilarityRequestJson(
@@ -540,7 +564,6 @@ class ChunksControllerIntegrationTest(
         val embC = generateVectorWithDistance(targetEmbedding, 0.01)
         val embD = generateVectorWithDistance(targetEmbedding, 0.3)
         val embE = generateVectorWithDistance(targetEmbedding, 0.59)
-        val anotherGame = (Game.entries - game).random()
         givenChunkEmbedding(game = game, language = language, topic = topic, text = "text A", embedding = embA)
         givenChunkEmbedding(game = anotherGame, language = language, topic = topic, text = "text B", embedding = embB)
         givenChunkEmbedding(game = anotherGame, language = language, topic = topic, text = "text C", embedding = embC)
@@ -562,7 +585,6 @@ class ChunksControllerIntegrationTest(
     }
 
     @Test fun `similaritySearch() Do not returns same game and language but different topic texts`() {
-        val game = aGame()
         val topic = aTopic()
         val language = aLanguage()
         val request = aChunkSearchBySimilarityRequestJson(
@@ -596,7 +618,6 @@ class ChunksControllerIntegrationTest(
 
     //TODO fix this suspected flaky test
     @Test fun `similaritySearch() Do not returns same game and topic but different language texts`() {
-        val game = aGame()
         val topic = aTopic()
         val language = SupportedLanguage.IT
         val request = aChunkSearchBySimilarityRequestJson(

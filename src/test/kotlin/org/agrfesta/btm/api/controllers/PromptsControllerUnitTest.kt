@@ -13,6 +13,7 @@ import org.agrfesta.btm.api.controllers.config.MessageResponse
 import org.agrfesta.btm.api.model.EmbeddingCreationFailure
 import org.agrfesta.btm.api.model.TokenCountFailure
 import org.agrfesta.btm.api.persistence.EmbeddingsDao
+import org.agrfesta.btm.api.persistence.GamesDao
 import org.agrfesta.btm.api.persistence.PartiesDao
 import org.agrfesta.btm.api.persistence.jdbc.repositories.GlossariesRepository
 import org.agrfesta.btm.api.services.ChunksService.Companion.DEFAULT_DISTANCE_LIMIT
@@ -40,12 +41,17 @@ class PromptsControllerUnitTest(
     @Autowired @MockkBean private val embeddingsProvider: EmbeddingsProvider,
     @Autowired @MockkBean private val partiesDao: PartiesDao,
     @Autowired @MockkBean private val embeddingsDao: EmbeddingsDao,
+    @Autowired @MockkBean private val gamesDao: GamesDao,
     @Autowired @MockkBean private val glossariesRepository: GlossariesRepository
 ) {
     private val game = aGame()
     private val topic = aTopic()
     private val language = aSupportedLanguage()
     private val prompt = aRandomUniqueString()
+
+    init {
+        every { gamesDao.findGameByName(game.name) } returns game
+    }
 
     ///// enhanceBasicPrompt ///////////////////////////////////////////////////////////////////////////////////////////
 
@@ -138,17 +144,19 @@ class PromptsControllerUnitTest(
         }
     }
 
-    @Test fun `enhanceBasicPrompt() Returns 400 when game is not valid`() {
-        val requestJson = aBasicPromptEnhanceRequestJson(game = aRandomUniqueString())
+    @Test fun `enhanceBasicPrompt() Returns 404 when Game is not found`() {
+        val gameName = aRandomUniqueString()
+        val requestJson = aBasicPromptEnhanceRequestJson(game = gameName)
+        every { gamesDao.findGameByName(gameName) } returns null
         val responseBody: String = mockMvc.perform(
             post("/prompts/enhance/basic")
                 .contentType("application/json")
                 .content(requestJson))
-            .andExpect(status().isBadRequest)
+            .andExpect(status().isNotFound)
             .andReturn().response.contentAsString
 
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-        response.message shouldBe "game is not valid!"
+        response.message shouldBe "game $gameName is missing!"
     }
 
     @TestFactory
@@ -214,7 +222,7 @@ class PromptsControllerUnitTest(
         )
         val target = anEmbedding()
         coEvery { embeddingsProvider.createEmbedding(prompt, true) } returns target.right()
-        every { embeddingsDao.searchBySimilarity(target, game, topic, language,
+        every { embeddingsDao.searchBySimilarity(target, game.name, topic, language,
             DEFAULT_EMBEDDINGS_LIMIT,
             DEFAULT_DISTANCE_LIMIT) } throws Exception("search by similarity failure!")
         val responseBody: String = mockMvc.perform(
@@ -243,7 +251,7 @@ class PromptsControllerUnitTest(
         val chunkC = aRandomUniqueString()
         val expectedContext = listOf(chunkA to 0.1, chunkB to 0.2, chunkC to 0.3)
         coEvery { embeddingsProvider.createEmbedding(prompt, true) } returns target.right()
-        every { embeddingsDao.searchBySimilarity(target, game, topic, language,
+        every { embeddingsDao.searchBySimilarity(target, game.name, topic, language,
             DEFAULT_EMBEDDINGS_LIMIT,
             DEFAULT_DISTANCE_LIMIT) } returns expectedContext
         coEvery { tokenizer.countTokens(chunkA, true) } returns 10.right()
@@ -281,7 +289,7 @@ class PromptsControllerUnitTest(
         val chunkE = aRandomUniqueString()
         val expectedContext = listOf(chunkA to 0.1, chunkB to 0.2, chunkC to 0.3, chunkD to 0.4, chunkE to 0.5)
         coEvery { embeddingsProvider.createEmbedding(prompt, true) } returns target.right()
-        every { embeddingsDao.searchBySimilarity(target, game, topic, language,
+        every { embeddingsDao.searchBySimilarity(target, game.name, topic, language,
             DEFAULT_EMBEDDINGS_LIMIT,
             DEFAULT_DISTANCE_LIMIT) } returns expectedContext
         coEvery { tokenizer.countTokens(chunkA, true) } returns 200.right()
@@ -320,7 +328,7 @@ class PromptsControllerUnitTest(
         val chunkE = aRandomUniqueString()
         val expectedContext = listOf(chunkA to 0.1, chunkB to 0.2, chunkC to 0.3, chunkD to 0.4, chunkE to 0.5)
         coEvery { embeddingsProvider.createEmbedding(prompt, true) } returns target.right()
-        every { embeddingsDao.searchBySimilarity(target, game, topic, language,
+        every { embeddingsDao.searchBySimilarity(target, game.name, topic, language,
             DEFAULT_EMBEDDINGS_LIMIT,
             DEFAULT_DISTANCE_LIMIT) } returns expectedContext
         coEvery { tokenizer.countTokens(chunkA, true) } returns 200.right()

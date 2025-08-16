@@ -1,10 +1,9 @@
 package org.agrfesta.btm.api.persistence
 
-import org.agrfesta.btm.api.model.Game
+import java.util.*
 import org.agrfesta.btm.api.model.Chunk
 import org.agrfesta.btm.api.model.Topic
 import org.springframework.transaction.annotation.Transactional
-import java.util.*
 
 interface ChunksDao {
 
@@ -17,14 +16,14 @@ interface ChunksDao {
     fun findChunk(chunkId: UUID): Chunk?
 
     /**
-     * Persists a [Chunk] by [topic] and [game].
+     * Persists a [Chunk] by [topic] and game name.
      *
      * @param topic [Chunk] related [Topic].
-     * @param game [Chunk] related [Game].
+     * @param gameName The name of the game this [Chunk] belongs to.
      * @return [UUID] assigned to persisted [Chunk].
      */
     @Transactional
-    fun persist(topic: Topic, game: Game): UUID
+    fun persist(topic: Topic, gameName: String): UUID
 
     /**
      * Deletes a [Chunk] by [chunkId].

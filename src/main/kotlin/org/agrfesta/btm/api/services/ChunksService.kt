@@ -60,7 +60,7 @@ class ChunksService(
      *  or [PersistenceFailure] if saving fails.
      */
     fun createChunk(game: Game, topic: Topic): Either<BtmFlowFailure, UUID> = try {
-        chunksDao.persist(topic, game).right()
+        chunksDao.persist(topic, game.name).right()
     } catch (e: Exception) {
         PersistenceFailure("Chunk persistence failure!", e).left()
     }
@@ -120,7 +120,7 @@ class ChunksService(
         distanceLimit: Double? = null
     ): Either<BtmFlowFailure, List<Pair<String, Double>>> = embedder(text).flatMap {
             try {
-                embeddingsDao.searchBySimilarity(it, game, topic, language,
+                embeddingsDao.searchBySimilarity(it, game.name, topic, language,
                     embeddingsLimit ?: DEFAULT_EMBEDDINGS_LIMIT,
                     distanceLimit ?: DEFAULT_DISTANCE_LIMIT
                 ).right()

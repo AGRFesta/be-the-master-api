@@ -9,10 +9,14 @@ import org.agrfesta.test.mothers.aRandomUniqueString
 import java.util.*
 import kotlin.collections.Collection
 
-fun aGame() = Game.entries.random()
 fun aTopic() = Topic.entries.random()
 fun aLanguage() = SupportedLanguage.entries.random()
 fun aSupportedLanguage() = SupportedLanguage.entries.random()
+
+fun aGame(
+    name: String = aRandomUniqueString(),
+    description: String? = null
+) = Game(name, description)
 
 fun aChunk(
     id: UUID = UUID.randomUUID(),
@@ -82,7 +86,7 @@ fun ChunkTranslationPatchRequest.toJsonString() = """
     """.trimIndent()
 
 fun aChunkSearchBySimilarityRequest(
-    game: Game = aGame(),
+    game: String = aRandomUniqueString(),
     topic: Topic = aTopic(),
     language: SupportedLanguage = aLanguage(),
     text: String = aRandomUniqueString(),
@@ -115,4 +119,4 @@ fun aChunkSearchBySimilarityRequestJson(
 }
 
 fun ChunkSearchBySimilarityRequest.toJsonString() =
-    aChunkSearchBySimilarityRequestJson(game.name, topic.name, language.name, text)
+    aChunkSearchBySimilarityRequestJson(game, topic.name, language.name, text)
