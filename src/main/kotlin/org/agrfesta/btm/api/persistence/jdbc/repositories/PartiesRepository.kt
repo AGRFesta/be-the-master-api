@@ -32,30 +32,31 @@ class PartiesRepository(
     }
 
     fun findPartyWithMembers(partyId: UUID): Party? {
-        val sql = """
-            SELECT p.name, p.game, c.sheet
-            FROM btm.party p
-            LEFT JOIN btm.character c ON p.id = c.party_id
-            WHERE p.id = :party_id
-        """.trimIndent()
-
-        val params = MapSqlParameterSource("party_id", partyId)
-
-        val result = jdbcTemplate.query(sql, params) { rs, _ ->
-            (rs.getString("name") to rs.getString("game")) to rs.getString("sheet")
-        }
-
-        if (result.isEmpty()) {
-            return null
-        }
-
-        val name = result.first().first.first
-        val game = Game.valueOf(result.first().first.second.uppercase(Locale.getDefault()))
-        val members = result.mapNotNull { (_, sheet) ->
-            sheet?.let { objectMapper.readTree(it) }
-        }
-
-        return Party(name = name, game = game, members = members)
+        TODO()
+//        val sql = """
+//            SELECT p.name, p.game, c.sheet
+//            FROM btm.party p
+//            LEFT JOIN btm.character c ON p.id = c.party_id
+//            WHERE p.id = :party_id
+//        """.trimIndent()
+//
+//        val params = MapSqlParameterSource("party_id", partyId)
+//
+//        val result = jdbcTemplate.query(sql, params) { rs, _ ->
+//            (rs.getString("name") to rs.getString("game")) to rs.getString("sheet")
+//        }
+//
+//        if (result.isEmpty()) {
+//            return null
+//        }
+//
+//        val name = result.first().first.first
+//        val game = Game.valueOf(result.first().first.second.uppercase(Locale.getDefault()))
+//        val members = result.mapNotNull { (_, sheet) ->
+//            sheet?.let { objectMapper.readTree(it) }
+//        }
+//
+//        return Party(name = name, game = game, members = members)
     }
 
 }

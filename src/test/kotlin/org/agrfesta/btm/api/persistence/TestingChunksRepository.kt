@@ -17,10 +17,20 @@ class TestingChunksRepository(
 ) {
 
     fun findById(id: UUID): ChunkEntity? {
-        val sql = """SELECT * FROM btm.chunks WHERE id = :id;"""
+        val sql = """
+        SELECT 
+            c.id,
+            g.name AS game_name,
+            c.topic,
+            c.created_on,
+            c.updated_on
+        FROM btm.chunks c
+        LEFT JOIN btm.games g ON g.id = c.game_id
+        WHERE c.id = :id;
+    """.trimIndent()
+
         val params = MapSqlParameterSource(mapOf("id" to id))
-        return jdbcTemplate.query(sql, params, ChunkRowMapper)
-            .firstOrNull()
+        return jdbcTemplate.query(sql, params, ChunkRowMapper).firstOrNull()
     }
 
     fun getTranslationWithEmbedding(
@@ -49,15 +59,18 @@ class TestingChunksRepository(
 
 }
 
-object ChunkRowMapper: RowMapper<ChunkEntity> {
-    override fun mapRow(rs: ResultSet, rowNum: Int) = ChunkEntity(
-        id = UUID.fromString(rs.getString("id")),
-        game = rs.getString("game"),
-        topic = rs.getString("topic"),
-        createdOn = rs.getTimestamp("created_on").toInstant(),
-        updatedOn = rs.getTimestamp("updated_on")?.toInstant()
-    )
+object ChunkRowMapper : RowMapper<ChunkEntity> {
+    override fun mapRow(rs: ResultSet, rowNum: Int): ChunkEntity {
+        return ChunkEntity(
+            id = UUID.fromString(rs.getString("id")),
+            game = rs.getString("game_name"), // comes from alias in SQL
+            topic = rs.getString("topic"),
+            createdOn = rs.getTimestamp("created_on").toInstant(),
+            updatedOn = rs.getTimestamp("updated_on")?.toInstant()
+        )
+    }
 }
+
 
 object TranslationWithEmbeddingRowMapper: RowMapper<TranslationWithEmbedding> {
 

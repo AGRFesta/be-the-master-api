@@ -19,7 +19,7 @@ interface EmbeddingsDao {
 
     fun searchBySimilarity(
         target: Embedding,
-        game: Game,
+        gameName: String,
         topic: Topic,
         language: SupportedLanguage,
         embeddingsLimit: Int,

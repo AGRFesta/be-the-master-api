@@ -12,7 +12,6 @@ import jakarta.validation.constraints.DecimalMin
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotEmpty
 import jakarta.validation.constraints.Positive
-import jakarta.validation.constraints.Size
 import java.util.*
 import kotlinx.coroutines.runBlocking
 import org.agrfesta.btm.api.controllers.config.MessageResponse
@@ -20,11 +19,11 @@ import org.agrfesta.btm.api.controllers.config.NonBlankStringSetDeserializer
 import org.agrfesta.btm.api.controllers.config.toResponseEntity
 import org.agrfesta.btm.api.model.Embedding
 import org.agrfesta.btm.api.model.EmbeddingCreationFailure
-import org.agrfesta.btm.api.model.Game
 import org.agrfesta.btm.api.model.MissingChunk
 import org.agrfesta.btm.api.model.PersistenceFailure
 import org.agrfesta.btm.api.model.SupportedLanguage
 import org.agrfesta.btm.api.model.Topic
+import org.agrfesta.btm.api.persistence.GamesDao
 import org.agrfesta.btm.api.services.ChunksService
 import org.agrfesta.btm.api.services.Embedder
 import org.agrfesta.btm.api.services.EmbeddingsProvider
@@ -49,6 +48,7 @@ import kotlin.math.sqrt
 @RequestMapping("/chunks")
 class ChunksController(
     private val chunksService: ChunksService,
+    private val gamesDao: GamesDao,
     private val embeddingsProvider: EmbeddingsProvider
 ) {
     private val embedder: Embedder = {text -> runBlocking { embeddingsProvider.createEmbedding(text, false) }}
@@ -66,8 +66,10 @@ class ChunksController(
      */
     @PostMapping
     fun createChunks(@Valid @RequestBody request: ChunksCreationRequest): ResponseEntity<Any> {
+        val game = gamesDao.findGameByName(request.game)
+            ?: return status(404).body(MessageResponse("game ${request.game} is missing!"))
         request.texts.forEach {
-            when (val insertResult = chunksService.createChunk(request.game, request.topic)) {
+            when (val insertResult = chunksService.createChunk(game, request.topic)) {
                 is Left -> {/* for the moment ignores it, but we should implement a retry queue */}
                 is Right -> {
                     val chunkId = insertResult.value
@@ -124,15 +126,18 @@ class ChunksController(
      *
      * @param request the [ChunkSearchBySimilarityRequest] containing the text to search,
      *                target game, topic, language, and optional search parameters.
-     * @return 200 OK with list of similar chunks sorted by distance,
-     *         400 Bad Request if input is invalid,
+     * @return 200 OK with list of similar chunks sorted by distance.
+     *         400 Bad Request if input is invalid.
+     *         404 Not Found if game is not found.
      *         500 Internal Server Error on processing failure.
      */
     @PostMapping("/similarity-search")
     fun similaritySearch(@Valid @RequestBody request: ChunkSearchBySimilarityRequest): ResponseEntity<Any> {
+            val game = gamesDao.findGameByName(request.game)
+                ?: return status(404).body(MessageResponse("game ${request.game} is missing!"))
             return chunksService.searchBySimilarity(
                 request.text,
-                request.game,
+                game,
                 request.topic,
                 request.language,
                 embedder,
@@ -146,7 +151,7 @@ class ChunksController(
 
 data class ChunksCreationRequest(
 
-    val game: Game,
+    val game: String,
 
     val topic: Topic,
 
@@ -172,7 +177,7 @@ data class ChunkTranslationPatchRequest(
 
 data class ChunkSearchBySimilarityRequest(
 
-    val game: Game,
+    val game: String,
 
     val topic: Topic,
 

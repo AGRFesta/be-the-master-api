@@ -15,12 +15,14 @@ import org.agrfesta.btm.api.services.utils.RandomGenerator
 import org.agrfesta.btm.api.services.utils.TimeService
 import org.springframework.stereotype.Service
 import java.util.*
+import org.agrfesta.btm.api.persistence.jdbc.repositories.GamesRepository
 
 @Service
 class EmbeddingsDaoJdbcImpl(
     private val randomGenerator: RandomGenerator,
     private val timeService: TimeService,
-    private val embeddingRepo: EmbeddingRepository
+    private val embeddingRepo: EmbeddingRepository,
+    private val gamesRepo: GamesRepository
 ): EmbeddingsDao {
     private val logger by LoggerDelegate()
 
@@ -57,14 +59,14 @@ class EmbeddingsDaoJdbcImpl(
 
     override fun searchBySimilarity(
         target: Embedding,
-        game: Game,
+        gameName: String,
         topic: Topic,
         language: SupportedLanguage,
         embeddingsLimit: Int,
         distanceLimit: Double
     ): List<Pair<String, Double>> = embeddingRepo.getNearestEmbeddings(
             target = target,
-            game = game.name,
+            gameId = gamesRepo.getByName(gameName).id,
             topic = topic.name,
             language = language.name,
             limit = embeddingsLimit

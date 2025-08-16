@@ -41,16 +41,6 @@ class EnumsMatchTest(
         RestAssured.baseURI = "http://localhost:$port"
     }
 
-    @Test fun `verify PostgreSQL game_enum matches Kotlin Game enum`() {
-        val postgresEnumValues: List<String> = jdbcTemplate.query(
-            "SELECT unnest(enum_range(NULL::game_enum))::text"
-        ) { rs, _ -> rs.getString(1) }
-
-        val kotlinEnumValues: List<String> = Game.entries.map { it.name }
-
-        kotlinEnumValues.shouldContainExactlyInAnyOrder(postgresEnumValues)
-    }
-
     @Test fun `verify PostgreSQL topic_enum matches Kotlin Topic enum`() {
         val postgresEnumValues: List<String> = jdbcTemplate.query(
             "SELECT unnest(enum_range(NULL::topic_enum))::text"

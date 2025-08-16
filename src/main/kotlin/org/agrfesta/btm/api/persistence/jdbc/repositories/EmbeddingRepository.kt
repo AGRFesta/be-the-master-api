@@ -1,16 +1,17 @@
 package org.agrfesta.btm.api.persistence.jdbc.repositories
 
 import com.pgvector.PGvector
+import java.sql.ResultSet
+import java.sql.Timestamp
+import java.time.Instant
+import java.util.*
 import org.agrfesta.btm.api.persistence.jdbc.entities.EmbeddingEntity
+import org.springframework.dao.DataAccessException
 import org.springframework.dao.EmptyResultDataAccessException
 import org.springframework.jdbc.core.RowMapper
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate
 import org.springframework.stereotype.Repository
-import java.sql.ResultSet
-import java.sql.Timestamp
-import java.time.Instant
-import java.util.*
 
 /**
  * Repository for performing JDBC operations on the `btm.embeddings` table.
@@ -76,33 +77,34 @@ class EmbeddingRepository(
      * Returns a list of texts and their distances to the target embedding, filtered by game, topic, and language.
      *
      * @param target the target embedding vector to search around.
-     * @param game the game (as enum) to filter by.
+     * @param gameId the UUID of the game to filter by.
      * @param topic the topic (as enum) to filter by.
      * @param language the language (as enum) to filter by.
      * @param limit maximum number of results to return.
      * @return list of (text, distance) pairs sorted by ascending distance.
+     * @throws DataAccessException if the query fails.
      */
     fun getNearestEmbeddings(
         target: FloatArray,
-        game: String,
+        gameId: UUID,
         topic: String,
         language: String,
         limit: Int
     ): List<Pair<String, Double>> {
         val sql = """
-            SELECT t.text, e.vector <=> :target AS distance
-            FROM btm.embeddings e
-            JOIN btm.translations t ON e.translation_id = t.id
-            JOIN btm.chunks tb ON t.chunk_id = tb.id
-            WHERE tb.game = CAST(:game AS game_enum)
-              AND tb.topic = CAST(:topic AS topic_enum)
-              AND t.language = CAST(:language AS supported_language_enum)
-            ORDER BY distance ASC
-            LIMIT :limit
-        """.trimIndent()
+        SELECT t.text, e.vector <=> :target AS distance
+        FROM btm.embeddings e
+        JOIN btm.translations t ON e.translation_id = t.id
+        JOIN btm.chunks c ON t.chunk_id = c.id
+        WHERE c.game_id = :gameId
+          AND c.topic = CAST(:topic AS topic_enum)
+          AND t.language = CAST(:language AS supported_language_enum)
+        ORDER BY distance ASC
+        LIMIT :limit
+    """.trimIndent()
 
         val params = MapSqlParameterSource(mapOf(
-            "game" to game,
+            "gameId" to gameId,
             "topic" to topic,
             "language" to language,
             "target" to PGvector(target),
@@ -113,6 +115,7 @@ class EmbeddingRepository(
             rs.getString("text") to rs.getDouble("distance")
         }
     }
+
 
     /**
      * Deletes the embedding associated with the given translation ID.

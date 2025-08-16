@@ -3,10 +3,10 @@ package org.agrfesta.btm.api.model
 import java.util.UUID
 
 class Chunk(
-    val id: UUID,
+    val id: UUID, //TODO reconsider this
     val game: Game,
     val topic: Topic,
-    translations: Set<Translation>
+    translations: Set<Translation> //TODO reconsider this, maybe have more sense as map
 ) {
     val translations: Set<Translation> = translations
         .filter { it.text.isNotBlank() }
