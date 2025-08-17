@@ -1,7 +1,5 @@
 package org.agrfesta.btm.api.persistence.jdbc.repositories
 
-import java.sql.Timestamp
-import java.time.Instant
 import java.util.*
 import org.agrfesta.btm.api.persistence.jdbc.entities.GameEntity
 import org.springframework.dao.DataAccessException

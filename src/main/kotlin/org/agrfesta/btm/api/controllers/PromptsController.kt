@@ -164,7 +164,7 @@ class PromptsController(
      */
     @PostMapping("/enhance/basic")
     fun enhanceBasicPrompt(@Valid @RequestBody request: BasicPromptEnhanceRequest): ResponseEntity<Any> {
-        val game = gamesDao.findGameByName(request.game)
+        gamesDao.findGameByName(request.game)
             ?: return status(404).body(MessageResponse("game ${request.game} is missing!"))
         return runBlocking {
             logger.info("Creating prompt embedding...")

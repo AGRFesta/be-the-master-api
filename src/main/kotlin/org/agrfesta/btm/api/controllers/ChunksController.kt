@@ -17,7 +17,6 @@ import kotlinx.coroutines.runBlocking
 import org.agrfesta.btm.api.controllers.config.MessageResponse
 import org.agrfesta.btm.api.controllers.config.NonBlankStringSetDeserializer
 import org.agrfesta.btm.api.controllers.config.toResponseEntity
-import org.agrfesta.btm.api.model.Embedding
 import org.agrfesta.btm.api.model.EmbeddingCreationFailure
 import org.agrfesta.btm.api.model.MissingChunk
 import org.agrfesta.btm.api.model.PersistenceFailure
@@ -37,7 +36,6 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-import kotlin.math.sqrt
 
 /**
  * REST controller for managing Text Chunks (small text units), their translations,
@@ -149,60 +147,77 @@ class ChunksController(
 
 }
 
+/** Request body for `POST /chunks` (bulk creation). */
 data class ChunksCreationRequest(
-
+    /** Case‑sensitive unique game name. Must exist. */
     val game: String,
 
+    /** The domain topic that groups chunks within a game. */
     val topic: Topic,
 
+    /** Language code of the initial translation (e.g., `EN`, `IT`). */
     val language: SupportedLanguage,
 
+    /**
+     * Set of non‑blank texts to create as individual chunks.
+     * A custom deserializer trims values and rejects blank/whitespace entries.
+     */
     @field:JsonDeserialize(using = NonBlankStringSetDeserializer::class)
     @field:NotEmpty(message = "No chunks to create!")
     val texts: Set<String>,
 
+    /** If `true` (default when omitted), compute an embedding for each translation. */
     val embed: Boolean?
-
 )
 
+/** Request body for `PATCH /chunks/{id}` (translation upsert/replace). */
 data class ChunkTranslationPatchRequest(
-
+    /** New translation text (non‑blank). */
     @field:NotBlank(message = "text must not be blank!")
     val text: String,
 
+    /** Language for the translation to update/replace. */
     val language: SupportedLanguage,
 
+    /** If `true`, skip embedding (assume a later batch job will handle it). */
     val inBatch: Boolean = false
 )
 
+/** Request body for `POST /chunks/similarity-search`. */
 data class ChunkSearchBySimilarityRequest(
-
+    /** Case‑sensitive game name. Must exist. */
     val game: String,
 
+    /** Topic scope to restrict candidate translations. */
     val topic: Topic,
 
+    /** Query text to embed and compare (non‑blank). */
     @field:NotBlank(message = "text must not be blank!")
     val text: String,
 
+    /** Language scope to restrict candidate translations. */
     val language: SupportedLanguage,
 
+    /** Optional DB limit (> 0) for the neighbor search. */
     @field:Positive(message = "embeddingsLimit must be a positive Int!")
     val embeddingsLimit: Int?,
 
+    /**
+     * Optional maximum cosine distance (0.0, 2.0) for early filtering.
+     * Values are exclusive on both ends per validation constraints.
+     */
     @field:DecimalMin(value = "0.0", inclusive = false, message = "distanceLimit must be in (0.0 ; 2.0)!")
     @field:DecimalMax(value = "2.0", inclusive = false, message = "distanceLimit must be in (0.0 ; 2.0)!")
     val distanceLimit: Double?
-
 )
 
+/** Single search hit returned by similarity search. */
 data class SimilarityResultItem(
+    /** The matched translation text. */
     val text: String,
+    /** Cosine distance to the query embedding (lower is more similar). */
     val distance: Double
 )
 
+/** Maps a persistence layer result pair to the API response model. */
 private fun Pair<String, Double>.toSimilarityResultItem() = SimilarityResultItem(first, second)
-
-fun Embedding.normalize(): Embedding {
-    val norm = sqrt(map { it * it }.sum())
-    return if (norm == 0f) this else map { it / norm }.toFloatArray()
-}
