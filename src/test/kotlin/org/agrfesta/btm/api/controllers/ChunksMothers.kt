@@ -13,11 +13,6 @@ fun aTopic() = Topic.entries.random()
 fun aLanguage() = SupportedLanguage.entries.random()
 fun aSupportedLanguage() = SupportedLanguage.entries.random()
 
-fun aGame(
-    name: String = aRandomUniqueString(),
-    description: String? = null
-) = Game(name, description)
-
 fun aChunk(
     id: UUID = UUID.randomUUID(),
     game: Game = aGame(),
