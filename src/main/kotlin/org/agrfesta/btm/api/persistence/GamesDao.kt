@@ -12,4 +12,12 @@ interface GamesDao {
      */
     fun findGameByName(name: String): Game?
 
+    /**
+     * Creates a [Game] with [name] and optional [description].
+     *
+     * @param name [Game] unique name.
+     * @param description [Game] optional description.
+     */
+    fun createGame(name: String, description: String? = null)
+
 }
