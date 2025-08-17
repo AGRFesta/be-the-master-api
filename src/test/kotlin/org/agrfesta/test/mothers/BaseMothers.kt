@@ -1,14 +1,11 @@
 package org.agrfesta.test.mothers
 
-import org.agrfesta.btm.api.controllers.normalize
-import org.agrfesta.btm.api.model.Embedding
 import java.util.*
-import kotlin.math.abs
+import org.agrfesta.btm.api.model.Embedding
 import kotlin.math.acos
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
-import kotlin.random.Random
 import kotlin.random.Random.Default.nextFloat
 
 fun aRandomUniqueString(): String = UUID.randomUUID().toString()
@@ -30,7 +27,7 @@ fun generateVectorWithDistance(base: Embedding, targetCosineDistance: Double): E
     // Generate a random vector and orthogonalize it to unitBase
     var orthogonal: FloatArray
     do {
-        val rand = FloatArray(base.size) { Random.nextFloat() - 0.5f }
+        val rand = FloatArray(base.size) { nextFloat() - 0.5f }
         val dot = unitBase.zip(rand).sumOf { (a, b) -> (a * b).toDouble() }.toFloat()
         val projection = unitBase.map { it * dot }.toFloatArray()
         orthogonal = rand.zip(projection).map { (r, p) -> r - p }.toFloatArray()
@@ -42,10 +39,16 @@ fun generateVectorWithDistance(base: Embedding, targetCosineDistance: Double): E
 
     // Compute target vector as linear combination at angle θ
     val angle = acos(targetSimilarity)
-    val cosθ = cos(angle).toFloat()
-    val sinθ = sin(angle).toFloat()
+    val cos = cos(angle).toFloat()
+
+    val sin = sin(angle).toFloat()
 
     return FloatArray(base.size) { i ->
-        cosθ * unitBase[i] + sinθ * unitOrth[i]
+        cos * unitBase[i] + sin * unitOrth[i]
     }
+}
+
+fun Embedding.normalize(): Embedding {
+    val norm = sqrt(map { it * it }.sum())
+    return if (norm == 0f) this else map { it / norm }.toFloatArray()
 }

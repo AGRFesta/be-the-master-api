@@ -37,6 +37,7 @@ import org.agrfesta.test.mothers.aNormalizedEmbedding
 import org.agrfesta.test.mothers.aRandomUniqueString
 import org.agrfesta.test.mothers.anEmbedding
 import org.agrfesta.test.mothers.generateVectorWithDistance
+import org.agrfesta.test.mothers.normalize
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DynamicTest.dynamicTest
