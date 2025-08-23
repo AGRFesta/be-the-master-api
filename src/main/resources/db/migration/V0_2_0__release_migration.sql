@@ -95,3 +95,12 @@ ALTER TABLE btm.translations DROP COLUMN language_code;
 
 ALTER TABLE btm.translations
     ALTER COLUMN language SET NOT NULL;
+
+-- -----------------------------
+-- 8. Add raw_part to btm.translations
+-- -----------------------------
+ALTER TABLE btm.translations
+ADD COLUMN non_semantic_part TEXT NULL;
+
+COMMENT ON COLUMN btm.translations.non_semantic_part IS
+  'Optional part of the original chunk containing non semantic text (e.g., tables, dice results). Not used for embeddings, but included when building the final context.';

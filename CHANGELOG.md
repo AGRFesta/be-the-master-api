@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Games creation endpoint.
+- Chunks can have an optional non-semantic part, not used for embeddings, but included when building the final context.
 
 [Compare changes →][Unreleased]
 

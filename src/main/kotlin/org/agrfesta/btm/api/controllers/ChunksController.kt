@@ -15,7 +15,7 @@ import jakarta.validation.constraints.Positive
 import java.util.*
 import kotlinx.coroutines.runBlocking
 import org.agrfesta.btm.api.controllers.config.MessageResponse
-import org.agrfesta.btm.api.controllers.config.NonBlankStringSetDeserializer
+import org.agrfesta.btm.api.controllers.config.NonBlankChunkContentSetDeserializer
 import org.agrfesta.btm.api.controllers.config.toResponseEntity
 import org.agrfesta.btm.api.model.EmbeddingCreationFailure
 import org.agrfesta.btm.api.model.MissingChunk
@@ -66,17 +66,19 @@ class ChunksController(
     fun createChunks(@Valid @RequestBody request: ChunksCreationRequest): ResponseEntity<Any> {
         val game = gamesDao.findGameByName(request.game)
             ?: return status(404).body(MessageResponse("game ${request.game} is missing!"))
-        request.texts.forEach {
-            when (val insertResult = chunksService.createChunk(game, request.topic)) {
-                is Left -> {/* for the moment ignores it, but we should implement a retry queue */}
-                is Right -> {
-                    val chunkId = insertResult.value
-                    chunksService.replaceTranslation(chunkId, request.language, it,
-                        if (request.embed != false) embedder else null)
+        request.chunksContent
+            .map { it.text }
+            .forEach {
+                when (val insertResult = chunksService.createChunk(game, request.topic)) {
+                    is Left -> {/* for the moment ignores it, but we should implement a retry queue */}
+                    is Right -> {
+                        val chunkId = insertResult.value
+                        chunksService.replaceTranslation(chunkId, request.language, it,
+                            if (request.embed != false) embedder else null)
+                    }
                 }
             }
-        }
-        return ok().body(MessageResponse("${request.texts.size} Chunks successfully persisted!"))
+        return ok().body(MessageResponse("${request.chunksContent.size} Chunks successfully persisted!"))
     }
 
     /**
@@ -147,6 +149,17 @@ class ChunksController(
 
 }
 
+/**
+ * Data class representing the content of a chunk.
+ *
+ * @property text The main content of the chunk.
+ * @property nonSemanticaPart Optional additional part of the content without semantic meaning.
+ */
+data class ChunkContent(
+    val text: String,
+    val nonSemanticaPart: String? = null
+)
+
 /** Request body for `POST /chunks` (bulk creation). */
 data class ChunksCreationRequest(
     /** Case‑sensitive unique game name. Must exist. */
@@ -162,9 +175,9 @@ data class ChunksCreationRequest(
      * Set of non‑blank texts to create as individual chunks.
      * A custom deserializer trims values and rejects blank/whitespace entries.
      */
-    @field:JsonDeserialize(using = NonBlankStringSetDeserializer::class)
+    @field:JsonDeserialize(using = NonBlankChunkContentSetDeserializer::class)
     @field:NotEmpty(message = "No chunks to create!")
-    val texts: Set<String>,
+    val chunksContent: Set<ChunkContent>,
 
     /** If `true` (default when omitted), compute an embedding for each translation. */
     val embed: Boolean?

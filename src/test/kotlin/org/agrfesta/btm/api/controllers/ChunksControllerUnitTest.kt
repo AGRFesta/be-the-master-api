@@ -58,11 +58,11 @@ class ChunksControllerUnitTest(
 
     ///// createChunks /////////////////////////////////////////////////////////////////////////////////////////////////
 
-    @Test fun `createChunks() Returns 400 when texts is missing`() {
+    @Test fun `createChunks() Returns 400 when chunksContent is missing`() {
         val responseBody: String = mockMvc.perform(
             post("/chunks")
                 .contentType("application/json")
-                .content(aChunksCreationRequestJson(texts = null)))
+                .content(aChunksCreationRequestJson(chunksContent = null)))
             .andExpect(status().isBadRequest)
             .andReturn().response.contentAsString
 
@@ -70,14 +70,18 @@ class ChunksControllerUnitTest(
         asserter.verifyNoTranslationsPersisted()
         asserter.verifyNoEmbeddingsPersisted()
         val response: MessageResponse = objectMapper.readValue(responseBody, MessageResponse::class.java)
-        response.message shouldBe "texts is missing!"
+        response.message shouldBe "chunksContent is missing!"
     }
 
-    @Test fun `createChunks() Returns 400 when texts is empty`() {
+    @Test fun `createChunks() Returns 400 when chunksContent is empty`() {
         val responseBody: String = mockMvc.perform(
             post("/chunks")
                 .contentType("application/json")
-                .content(aChunksCreationRequestJson(texts = listOf("", " ", "  "))))
+                .content(aChunksCreationRequestJson(chunksContent = listOf(
+                    aChunkContentJson(""),
+                    aChunkContentJson(" "),
+                    aChunkContentJson("  ")
+                ))))
             .andExpect(status().isBadRequest)
             .andReturn().response.contentAsString
 
@@ -225,7 +229,11 @@ class ChunksControllerUnitTest(
                     game = game.name,
                     topic = topic.name,
                     language = language.name,
-                    texts = listOf(textA, textB, textC))))
+                    chunksContent = listOf(
+                        aChunkContentJson(textA),
+                        aChunkContentJson(textB),
+                        aChunkContentJson(textC))
+                )))
             .andExpect(status().isOk)
             .andReturn().response.contentAsString
 
@@ -265,7 +273,11 @@ class ChunksControllerUnitTest(
                     game = game.name,
                     topic = topic.name,
                     language = language.name,
-                    texts = listOf(textA, textB, textC))))
+                    chunksContent = listOf(
+                        aChunkContentJson(textA),
+                        aChunkContentJson(textB),
+                        aChunkContentJson(textC))
+                )))
             .andExpect(status().isOk)
             .andReturn().response.contentAsString
 

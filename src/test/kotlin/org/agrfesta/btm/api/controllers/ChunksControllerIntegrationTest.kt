@@ -96,7 +96,11 @@ class ChunksControllerIntegrationTest(
             topic = topic.name,
             language = language.name,
             embed = true,
-            texts = listOf(textA, textB, textC))
+            chunksContent = listOf(
+                aChunkContentJson(textA),
+                aChunkContentJson(textB),
+                aChunkContentJson(textC))
+        )
         val embA = anEmbedding()
         val embB = anEmbedding()
         val embC = anEmbedding()
@@ -153,7 +157,11 @@ class ChunksControllerIntegrationTest(
             topic = topic.name,
             language = language.name,
             embed = true,
-            texts = listOf(textA, textB, textC))
+            chunksContent = listOf(
+                aChunkContentJson(textA),
+                aChunkContentJson(textB),
+                aChunkContentJson(textC))
+        )
         val embA = anEmbedding()
         val embC = anEmbedding()
         coEvery { embeddingsProvider.createEmbedding(textA, false) } returns embA.right()
@@ -200,7 +208,13 @@ class ChunksControllerIntegrationTest(
             topic = topic.name,
             language = language.name,
             embed = null,
-            texts = listOf(textA, textB, textC, textD))
+            chunksContent = listOf(
+                aChunkContentJson(textA),
+                aChunkContentJson(textB),
+                aChunkContentJson(textC),
+                aChunkContentJson(textD)
+            )
+        )
         val embA = anEmbedding()
         val embB = anEmbedding()
         val embC = anEmbedding()
@@ -248,7 +262,11 @@ class ChunksControllerIntegrationTest(
             topic = topic.name,
             language = language.name,
             embed = false,
-            texts = listOf(textA, textB))
+            chunksContent = listOf(
+                aChunkContentJson(textA),
+                aChunkContentJson(textB)
+            )
+        )
 
         val result = given()
             .contentType(ContentType.JSON)
@@ -288,7 +306,13 @@ class ChunksControllerIntegrationTest(
             topic = topic.name,
             language = language.name,
             embed = false,
-            texts = listOf("", text, " ", "  "))
+            chunksContent = listOf(
+                aChunkContentJson(""),
+                aChunkContentJson(text),
+                aChunkContentJson(" "),
+                aChunkContentJson("  ")
+            )
+        )
 
         val result = given()
             .contentType(ContentType.JSON)
@@ -314,7 +338,16 @@ class ChunksControllerIntegrationTest(
             topic = topic.name,
             language = language.name,
             embed = false,
-            texts = listOf("", textA, textB, textB, "  ", textB, textA))
+            chunksContent = listOf(
+                aChunkContentJson(""),
+                aChunkContentJson(textA),
+                aChunkContentJson(textB),
+                aChunkContentJson(textB),
+                aChunkContentJson("  "),
+                aChunkContentJson(textB),
+                aChunkContentJson(textA)
+            )
+        )
 
         val result = given()
             .contentType(ContentType.JSON)

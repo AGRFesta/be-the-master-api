@@ -20,18 +20,33 @@ fun aChunk(
     translations: Set<Translation> = emptySet()
 ) = Chunk(id, game, topic, translations)
 
+fun aChunkContentJson(
+    text: String? = aRandomUniqueString(),
+    nonSemanticaPart: String? = null
+): String {
+    val properties = buildList {
+        nonSemanticaPart?.let { add(""""nonSemanticaPart": "$nonSemanticaPart"""") }
+        text?.let { add(""""text": "$text"""") }
+    }
+    return properties.joinToString(
+        separator = ",\n    ",
+        prefix = "{\n    ",
+        postfix = "\n}"
+    )
+}
+
 fun aChunksCreationRequestJson(
     game: String? = aGame().name,
     topic: String? = aTopic().name,
     language: String? = aLanguage().name,
-    texts: List<String>? = List(3) { aRandomUniqueString() },
+    chunksContent: List<String>? = List(3) { aChunkContentJson() },
     embed: Boolean? = true
 ): String {
     val properties = buildList {
         game?.let { add(""""game": "$it"""") }
         topic?.let { add(""""topic": "$topic"""") }
         language?.let { add(""""language": "$language"""") }
-        texts?.let { add(""""texts": ${texts.toJsonStringArray()}""") }
+        chunksContent?.let { add(""""chunksContent": ${chunksContent.toJsonObjectArray()}""") }
         embed?.let { add(""""embed": $embed""") }
     }
 
@@ -65,6 +80,12 @@ fun Collection<String>.toJsonStringArray(): String = joinToString(
     postfix = "]",
     separator = ","
 ) { "\"${it}\"" }
+
+fun Collection<String>.toJsonObjectArray(): String = joinToString(
+    prefix = "[",
+    postfix = "]",
+    separator = ","
+) { "${it}" }
 
 fun aChunkTranslationsPatchRequest(
     text: String = aRandomUniqueString(),

@@ -3,7 +3,7 @@ package org.agrfesta.btm.api.model
 import java.util.UUID
 
 class Chunk(
-    val id: UUID, //TODO reconsider this
+    val id: UUID,
     val game: Game,
     val topic: Topic,
     translations: Set<Translation> //TODO reconsider this, maybe have more sense as map
@@ -19,8 +19,3 @@ class Chunk(
         }
     }
 }
-
-data class Translation(
-    val text: String,
-    val language: SupportedLanguage
-)
